@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 
 class Job extends Model
 {
@@ -182,7 +183,7 @@ class Job extends Model
      */
     public function getIsExpiredAttribute(): bool
     {
-        return $this->deadline && $this->deadline->isPast();
+        return $this->deadline instanceof Carbon && $this->deadline->isPast();
     }
 
     /**
