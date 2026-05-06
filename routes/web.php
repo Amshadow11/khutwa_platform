@@ -1,7 +1,10 @@
 <?php
 
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\VerificationController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\JobsController;
 use App\Http\Controllers\User\ApplicationController as UserApplicationController;
@@ -33,8 +36,42 @@ Route::middleware('guest:company,web')->group(function () {
     Route::get('/register',          [RegisterController::class, 'showForm'])->name('register');
     Route::post('/register/user',    [RegisterController::class, 'registerUser'])->name('register.user');
     Route::post('/register/company', [RegisterController::class, 'registerCompany'])->name('register.company');
-});
+    Route::get('/forgot-password', [ForgotPasswordController::class, 'showForm']
+    )->name('password.request');
 
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendLink']
+    )->name('password.email')
+     ->middleware('throttle:3,1');
+
+    // --------------------------------------------------------
+    // إعادة تعيين كلمة المرور — للمستخدم
+    // {token} يصل عبر رابط الإيميل
+    // --------------------------------------------------------
+    Route::get('/reset-password/{token}',[ResetPasswordController::class, 'showForm']
+    )->name('password.reset');
+
+    Route::post('/reset-password',  [ResetPasswordController::class, 'reset']
+    )->name('password.update');
+});
+Route::middleware('auth:web')->group(function () {
+
+    // صفحة "تحقق من بريدك" — تظهر للمستخدم غير المتحقق
+    Route::get('/email/verify',
+        [VerificationController::class, 'notice']
+    )->name('verification.notice');
+
+    // معالجة رابط التحقق من الإيميل (يصل عبر URL موقَّع)
+    Route::get('/email/verify/{id}/{hash}',
+        [VerificationController::class, 'verify']
+    )->middleware(['signed', 'throttle:6,1'])
+     ->name('verification.verify');
+
+    // إعادة إرسال إيميل التحقق
+    Route::post('/email/verification-notification',
+        [VerificationController::class, 'resend']
+    )->middleware('throttle:3,1')
+     ->name('verification.send');
+});
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // ============================================================
@@ -65,7 +102,7 @@ Route::middleware(['auth:web'])
             ->name('applications.destroy');
 
         // الملف الشخصي
-        Route::get('/profile.show',          [UserProfileController::class, 'show'])->name('profile.show');
+        Route::get('/profile',          [UserProfileController::class, 'show'])->name('profile.show');
         Route::get('/profile/edit',     [UserProfileController::class, 'edit'])->name('profile.edit');
         Route::put('/profile',          [UserProfileController::class, 'update'])->name('profile.update');
         Route::put('/profile/password', [UserProfileController::class, 'changePassword'])->name('profile.password');

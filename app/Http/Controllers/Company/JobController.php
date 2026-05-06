@@ -9,6 +9,7 @@ use App\Models\Job;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class JobController extends Controller
@@ -61,12 +62,13 @@ class JobController extends Controller
         $company = Auth::guard('company')->user();
 
         $company->jobs()->create($request->validated());
+        
+        $this->clearJobCache($company->id);
 
         return redirect()
             ->route('company.jobs.index')
             ->with('success', 'تم نشر الوظيفة بنجاح');
     }
-
     // ========================================================
     // عرض وظيفة + تفاصيل المتقدمين
     // ========================================================
@@ -120,7 +122,7 @@ class JobController extends Controller
         $this->authorizeJob($job);
 
         $job->update($request->validated());
-
+        $this->clearJobCache($job->company_id);
         return redirect()
             ->route('company.jobs.show', $job)
             ->with('success', 'تم تحديث الوظيفة بنجاح');
@@ -139,7 +141,7 @@ class JobController extends Controller
         $this->authorizeJob($job);
 
         $job->delete(); // Soft Delete فقط
-
+        $this->clearJobCache($job->company_id);
         return redirect()
             ->route('company.jobs.index')
             ->with('success', 'تم حذف الوظيفة');
@@ -165,6 +167,8 @@ class JobController extends Controller
             'is_active' => $isActive,
         ]);
 
+        $this->clearJobCache($job->company_id);
+
         $label = $isActive ? 'تم تفعيل الوظيفة' : 'تم إيقاف الوظيفة';
 
         return back()->with('success', $label);
@@ -187,5 +191,11 @@ class JobController extends Controller
             403,
             'غير مصرح لك بالوصول إلى هذه الوظيفة'
         );
+    }
+    private function clearJobCache(int $companyId): void
+    {
+        Cache::forget("company_dashboard_{$companyId}");
+        Cache::forget('home_latest_jobs');
+        Cache::forget('home_stats');
     }
 }

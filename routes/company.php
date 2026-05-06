@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Company\ApplicationController;
 use App\Http\Controllers\Company\DashboardController;
 use App\Http\Controllers\Company\JobController;
@@ -13,7 +15,25 @@ use Illuminate\Support\Facades\Route;
 //   2. تبدأ بـ /company/...
 //   3. لها prefix في أسماء المسارات: company.*
 // ============================================================
+Route::middleware('guest:company,web')->group(function () {
 
+    Route::get('/company/forgot-password',[ForgotPasswordController::class, 'showForm']
+    )->defaults('type', 'company')
+     ->name('company.password.request');
+
+    Route::post('/company/forgot-password', [ForgotPasswordController::class, 'sendLink']
+    )->defaults('type', 'company')
+     ->name('company.password.email')
+     ->middleware('throttle:3,1');
+
+    Route::get('/company/reset-password/{token}', [ResetPasswordController::class, 'showForm']
+    )->defaults('type', 'company')
+     ->name('company.password.reset');
+
+    Route::post('/company/reset-password', [ResetPasswordController::class, 'reset']
+    )->defaults('type', 'company')
+     ->name('company.password.update');
+});
 Route::middleware(['auth:company'])
     ->prefix('company')
     ->name('company.')
@@ -24,8 +44,7 @@ Route::middleware(['auth:company'])
         // ------------------------------------------------
         Route::get('/dashboard', [DashboardController::class, 'index'])
             ->name('dashboard');
-
-        // ------------------------------------------------
+            
         // الوظائف — Resource Routes كاملة
         // ------------------------------------------------
         // index   → GET    /company/jobs           → company.jobs.index
@@ -36,11 +55,15 @@ Route::middleware(['auth:company'])
         // update  → PUT    /company/jobs/{job}     → company.jobs.update
         // destroy → DELETE /company/jobs/{job}     → company.jobs.destroy
         Route::resource('jobs', JobController::class);
-
+        Route::middleware(['company.verified'])->group(function () {
+            Route::get('/jobs/create',        [JobController::class, 'create'])->name('jobs.create');
+            Route::post('/jobs',              [JobController::class, 'store'])->name('jobs.store');
+            Route::get('/jobs/{job}/edit',    [JobController::class, 'edit'])->name('jobs.edit');
+            Route::put('/jobs/{job}',         [JobController::class, 'update'])->name('jobs.update');
+            Route::delete('/jobs/{job}',      [JobController::class, 'destroy'])->name('jobs.destroy');
+            Route::patch('/jobs/{job}/toggle',[JobController::class, 'toggle'])->name('jobs.toggle');
+        });
         // تفعيل/تعطيل وظيفة — خارج Resource
-        Route::patch('jobs/{job}/toggle', [JobController::class, 'toggle'])
-            ->name('jobs.toggle');
-
         // ------------------------------------------------
         // طلبات التقديم الواردة
         // ------------------------------------------------

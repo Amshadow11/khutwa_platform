@@ -3,6 +3,14 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use App\Http\Middleware\EnsureCompanyAuthenticated;
+use App\Http\Middleware\EnsureCompanyVerified;
+use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Auth\Middleware\Authenticate;
+use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
+use Illuminate\Auth\Access\AuthorizationException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
 
@@ -19,10 +27,13 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-            'auth'         => \Illuminate\Auth\Middleware\Authenticate::class,
-            'guest'        => \Illuminate\Auth\Middleware\RedirectIfAuthenticated::class,
-            'throttle'     => \Illuminate\Routing\Middleware\ThrottleRequests::class,
-            'auth.company' => \App\Http\Middleware\EnsureCompanyAuthenticated::class,
+            'auth'         => Authenticate::class,
+
+            'guest'        => RedirectIfAuthenticated::class,
+            'throttle'     => ThrottleRequests::class,
+            'auth.company' => EnsureCompanyAuthenticated::class,
+            'company.verified' => EnsureCompanyVerified::class,
+            'verified' => EnsureEmailIsVerified::class,
         ]);
 
         $middleware->redirectGuestsTo(fn() => route('login'));
@@ -31,7 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
 
         $exceptions->render(function (
-            \Illuminate\Auth\Access\AuthorizationException $e,
+            AuthorizationException $e,
             $request
         ) {
             if ($request->expectsJson()) {
@@ -41,7 +52,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (
-            \Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e,
+            NotFoundHttpException $e,
             $request
         ) {
             if ($request->expectsJson()) {

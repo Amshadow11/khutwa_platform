@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,9 +11,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
-class Company extends Authenticatable
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+class Company extends Authenticatable implements CanResetPasswordContract
 {
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, Notifiable, SoftDeletes, CanResetPassword;
 
     // ========================================================
     // الحقول المسموح بتعبئتها (Mass Assignment Protection)
@@ -78,7 +81,7 @@ class Company extends Authenticatable
      */
     public function conversations(): HasMany
     {
-        return $this->hasMany(\App\Models\Conversation::class);
+        return $this->hasMany(Conversation::class);
     }
 
     /**
@@ -93,7 +96,7 @@ class Company extends Authenticatable
      * طلبات التوظيف المستلمة على جميع وظائف الشركة.
      * العلاقة عبر جدول وسيط (Has Many Through)
      */
-    public function applications(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    public function applications(): HasManyThrough
     {
         return $this->hasManyThrough(Application::class, Job::class);
     }
@@ -168,5 +171,9 @@ class Company extends Authenticatable
             'large'   => 'كبيرة',
             default   => 'غير محدد',
         };
+    }
+    public function isSubscriptionActive(): bool
+    {
+        return $this->is_subscription_active;
     }
 }

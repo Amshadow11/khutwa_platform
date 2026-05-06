@@ -221,7 +221,7 @@
                     <input type="checkbox" name="remember" {{ old('remember') ? 'checked' : '' }}>
                     تذكرني
                 </label>
-                <a href="#" style="font-size:.82rem;color:#2C5AA0;text-decoration:none">
+                <a href="{{ route('password.request') }}" style="font-size:.82rem;color:#2C5AA0;text-decoration:none">
                     نسيت كلمة المرور؟
                 </a>
             </div>

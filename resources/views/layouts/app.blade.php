@@ -250,6 +250,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="{{ route('user.profile.show') }}">
+                            <i class="fas fa-user me-1"></i>>الملف الشخصي
+                        </a>
+                    </li>
+     
+                    <li class="nav-item">
                         <form action="{{ route('logout') }}" method="POST" class="d-inline">
                             @csrf
                             <button class="btn btn-sm btn-outline-danger rounded-pill px-3">

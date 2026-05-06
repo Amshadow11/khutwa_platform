@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -127,7 +128,7 @@ class Application extends Model
      * الاستخدام:
      * $application->updateStatus('shortlisted', 'المرشح مناسب للمقابلة');
      */
-    public function updateStatus(string $newStatus, ?string $note = null): bool
+    public function updateStatus(string $newStatus, ?string $note = null, bool $silent = false): bool
     {
         // التحقق من أن الحالة صالحة
         if (! in_array($newStatus, self::STATUSES)) {
@@ -149,10 +150,10 @@ class Application extends Model
             'changed_at' => now(),
         ]);
 
-        // إرسال إشعار للمستخدم عند تغيير الحالة
-        $this->load('user', 'job.company');
-        $this->user->notify(new ApplicationStatusChanged($this, $oldStatus));
-
+       if (! $silent) {
+            $this->load('user', 'job.company');
+            $this->user->notify(new ApplicationStatusChanged($this, $oldStatus));
+        }
         return true;
     }
 
@@ -162,7 +163,7 @@ class Application extends Model
     public function markAsViewed(): void
     {
         if ($this->status === self::STATUS_PENDING) {
-            $this->updateStatus(self::STATUS_VIEWED);
+            $this->updateStatus(self::STATUS_VIEWED, silent: true);
         }
     }
 

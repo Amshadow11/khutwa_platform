@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\RegisterUserRequest;
 use App\Http\Requests\Auth\RegisterCompanyRequest;
 use App\Models\Company;
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -59,11 +60,14 @@ class RegisterController extends Controller
         Auth::guard('web')->login($user);
         $request->session()->regenerate();
 
-        return redirect()
-            ->route('user.dashboard')
-            ->with('success', "مرحباً {$user->display_name}! تم إنشاء حسابك بنجاح");
-    }
+        event(new Registered($user));
 
+        // توجيه لصفحة "تحقق من بريدك الإلكتروني"
+        // المستخدم مسجّل دخول لكن لم يتحقق بعد
+        return redirect()
+            ->route('verification.notice')
+            ->with('success', "مرحباً {$user->display_name}! تم إنشاء حسابك. تحقق من بريدك الإلكتروني لتفعيل الحساب.");
+    }
     // ========================================================
     // تسجيل شركة جديدة
     // ========================================================

@@ -1,17 +1,22 @@
 <?php
 
 namespace App\Models;
-
+use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail, CanResetPasswordContract, FilamentUser
 {
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, Notifiable, SoftDeletes, CanResetPassword;
 
     // ========================================================
     // الحقول المسموح بتعبئتها
@@ -52,6 +57,7 @@ class User extends Authenticatable
     protected $casts = [
         'is_active'      => 'boolean',
         'email_verified' => 'boolean',
+        'email_verified_at' => 'datetime',
         'phone_verified' => 'boolean',
         'birth_date'     => 'date',
         'last_login'     => 'datetime',
@@ -76,7 +82,7 @@ class User extends Authenticatable
      */
     public function conversations(): HasMany
     {
-        return $this->hasMany(\App\Models\Conversation::class);
+        return $this->hasMany(Conversation::class);
     }
 
     /**
@@ -91,7 +97,7 @@ class User extends Authenticatable
      * الوظائف التي قدّم عليها المستخدم (عبر applications).
      * مستخدم ↔ وظائف (Many-to-Many عبر applications)
      */
-    public function appliedJobs(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function appliedJobs(): BelongsToMany
     {
         return $this->belongsToMany(Job::class, 'applications')
                     ->withPivot(['status', 'cover_letter', 'cv_path', 'applied_at'])
@@ -149,4 +155,13 @@ class User extends Authenticatable
                     ->where('job_id', $jobId)
                     ->exists();
     }
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return true; // لاحقاً نقيّده بـ is_admin
+    }
+    public function getNameAttribute(): string
+    {
+        return $this->full_name ?? $this->username ?? 'Admin';
+    }
+    
 }

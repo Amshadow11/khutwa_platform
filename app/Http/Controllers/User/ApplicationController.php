@@ -36,14 +36,18 @@ class ApplicationController extends Controller
             ->paginate(12);
 
         // إحصائيات سريعة
-        $stats = [
-            'total'       => Application::where('user_id', $user->id)->count(),
-            'pending'     => Application::where('user_id', $user->id)->where('status', 'pending')->count(),
-            'shortlisted' => Application::where('user_id', $user->id)->where('status', 'shortlisted')->count(),
-            'accepted'    => Application::where('user_id', $user->id)->where('status', 'accepted')->count(),
-            'rejected'    => Application::where('user_id', $user->id)->where('status', 'rejected')->count(),
-        ];
+        $rawStats = Application::where('user_id', $user->id)
+            ->selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
 
+        $stats = [
+            'total'       => $rawStats->sum(),
+            'pending'     => $rawStats->get('pending', 0),
+            'shortlisted' => $rawStats->get('shortlisted', 0),
+            'accepted'    => $rawStats->get('accepted', 0),
+            'rejected'    => $rawStats->get('rejected', 0),
+        ];
         return view('user.applications.index', compact('applications', 'stats'));
     }
 

@@ -4,7 +4,7 @@ namespace App\Http\Requests\Job;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
-
+use App\Models\Company;
 class StoreJobRequest extends FormRequest
 {
     /**
@@ -115,10 +115,15 @@ class StoreJobRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $company = Auth::guard('company')->user();
+
+        // فحص الاشتراك — isSubscriptionActive() موجودة في Company Model
+        $isPaid = $company?->isSubscriptionActive()  ?? false;
+
         $this->merge([
             'remote_work' => $this->boolean('remote_work'),
-            'featured'    => $this->boolean('featured'),
-            'urgent'      => $this->boolean('urgent'),
+            'featured'    => $isPaid ? $this->boolean('featured') : false,
+            'urgent'      => $isPaid ? $this->boolean('urgent')   : false,
         ]);
     }
 }

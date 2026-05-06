@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
+use App\Notifications\NewMessage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -171,6 +172,21 @@ class MessageController extends Controller
 
         if ($request->hasFile('attachment')) {
             $file           = $request->file('attachment');
+            $finfo    = new \finfo(FILEINFO_MIME_TYPE);
+            $realMime = $finfo->file($file->path());
+
+            $allowedMimes = [
+                'application/pdf',
+                'image/jpeg',
+                'image/png',
+                'image/webp',
+            ];
+
+            abort_if(
+                ! in_array($realMime, $allowedMimes, true),
+                422,
+                'نوع الملف غير مدعوم. الملفات المسموحة: PDF, JPG, PNG, WEBP'
+            );
             $attachmentPath = $file->store('messages/' . date('Y/m'), 'public');
             $attachmentName = $file->getClientOriginalName();
             $attachmentType = $file->getMimeType();
@@ -189,7 +205,13 @@ class MessageController extends Controller
 
         // تحديث بيانات المحادثة
         $conversation->updateLastMessage($message, $auth['type']);
+        $recipient = $auth['type'] === Company::class
+            ? $conversation->user
+            : $conversation->company;
 
+        if ($recipient) {
+            $recipient->notify(new NewMessage($message, $conversation));
+        }
         return redirect()
             ->route('messages.show', $conversation)
             ->with('success', 'تم إرسال الرسالة');
