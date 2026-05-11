@@ -144,12 +144,13 @@
     </style>
 
     {{-- PWA --}}
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/site.manifest.json">    
     <meta name="theme-color" content="#2C5AA0">
     <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="خطوة">
+    @vite([ 'resources/js/app.js'])
 
     @stack('styles')
 </head>
@@ -411,7 +412,9 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
-
+<script>
+    document.addEventListener('DOMContentLoaded', function() {});
+</script>
 @stack('scripts')
 </body>
 </html>

@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use App\Events\MessageSent;
 
 class MessageController extends Controller
 {
@@ -205,6 +206,8 @@ class MessageController extends Controller
 
         // تحديث بيانات المحادثة
         $conversation->updateLastMessage($message, $auth['type']);
+        // Broadcast للـ Realtime
+        broadcast(new MessageSent($message))->toOthers();
         $recipient = $auth['type'] === Company::class
             ? $conversation->user
             : $conversation->company;

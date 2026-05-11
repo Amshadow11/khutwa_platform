@@ -266,36 +266,24 @@
 
 @push('scripts')
 <script>
-    // Scroll لآخر رسالة
-    const chatBody = document.getElementById('chatBody');
-    chatBody.scrollTop = chatBody.scrollHeight;
+  document.addEventListener('DOMContentLoaded', function() {
+    window.Echo.private('conversation.{{ $conversation->id }}')
+        .listen('.message.sent', function(data) {
+            console.log('NEW MESSAGE:', data);
 
-    // إرسال بـ Enter (Shift+Enter = سطر جديد)
-    function handleKey(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            document.getElementById('msgForm').submit();
-        }
-    }
+            var chatBody = document.getElementById('chatBody');
+            var wrap = document.createElement('div');
+            wrap.className = 'bubble-wrap';
+            wrap.innerHTML =
+                '<img src="{{ $avatar }}" class="avatar" alt="">' +
+                '<div class="bubble theirs">' +
+                    (data.body ? data.body : '') +
+                    '<span class="bubble-time">' + data.created_at + '</span>' +
+                '</div>';
 
-    // Auto-resize textarea
-    const msgInput = document.getElementById('msgInput');
-    msgInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-    });
-
-    // عرض اسم المرفق
-    function showAttach(input) {
-        if (input.files && input.files[0]) {
-            document.getElementById('attachName').textContent = input.files[0].name;
-            document.getElementById('attachPreview').classList.remove('d-none');
-        }
-    }
-
-    function clearAttach() {
-        document.getElementById('attachInput').value = '';
-        document.getElementById('attachPreview').classList.add('d-none');
-    }
+            chatBody.appendChild(wrap);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        });
+});
 </script>
 @endpush

@@ -13,6 +13,7 @@ use App\Http\Controllers\User\ProfileController as UserProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Shared\MessageController;
 use App\Http\Controllers\Shared\NotificationController;
+use Illuminate\Support\Facades\Broadcast;
 
 // ============================================================
 // المسارات العامة (بدون تسجيل دخول)
@@ -129,3 +130,5 @@ Route::middleware(['auth:company,web'])->group(function () {
     Route::get('/notifications/{id}',             [NotificationController::class, 'read'])->name('notifications.read');
     Route::post('/notifications/mark-all',        [NotificationController::class, 'markAll'])->name('notifications.markAll');
 });
+// Broadcasting Auth — يدعم كلا الـ Guards
+Broadcast::routes(['middleware' => ['auth:web,company']]);
