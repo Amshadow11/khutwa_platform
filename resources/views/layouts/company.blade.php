@@ -322,6 +322,14 @@
             <i class="fas fa-tachometer-alt"></i>
             <span>نظرة عامة</span>
         </a>
+        <a href="{{ route('company.subscription.index') }}"
+            class="sidebar-link {{ request()->routeIs('company.subscription.*') ? 'active' : '' }}">
+            <i class="fas fa-crown me-2"></i>
+            خطة الاشتراك
+            @if(isset($usageSummary) && $usageSummary['jobs']['remaining'] <= 1 && !$usageSummary['jobs']['unlimited'])
+                <span class="badge bg-warning ms-auto">!</span>
+            @endif
+        </a>
 
         <div class="sidebar-heading">الوظائف</div>
 

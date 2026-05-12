@@ -12,6 +12,8 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
 class Company extends Authenticatable implements CanResetPasswordContract
 {
     use HasFactory, Notifiable, SoftDeletes, CanResetPassword;
@@ -100,7 +102,134 @@ class Company extends Authenticatable implements CanResetPasswordContract
     {
         return $this->hasManyThrough(Application::class, Job::class);
     }
+    // ========================================================
+// علاقات الاشتراك
+// ========================================================
 
+/**
+ * الاشتراك الحالي النشط.
+ */
+public function activeSubscription(): HasOne
+{
+    return $this->hasOne(CompanySubscription::class)
+                ->where(fn($q) => $q
+                    ->where('status', 'active')
+                    ->orWhere('status', 'trial')
+                )
+                ->where(fn($q) => $q
+                    ->whereNull('ends_at')
+                    ->orWhere('ends_at', '>', now())
+                )
+                ->latest();
+}
+
+/**
+ * جميع الاشتراكات السابقة والحالية.
+ */
+public function subscriptions(): HasMany
+{
+    return $this->hasMany(CompanySubscription::class);
+}
+
+/**
+ * الخطة الحالية.
+ */
+public function currentPlan(): ?SubscriptionPlan
+{
+    // Runtime cache — يُصفَّر مع كل request جديد
+    if (isset($this->_currentPlan)) {
+        return $this->_currentPlan;
+    }
+
+    $this->_currentPlan = $this->activeSubscription()
+        ?->with('plan.features')
+        ?->first()
+        ?->plan
+        ?? SubscriptionPlan::with('features')
+                           ->where('slug', 'free')
+                           ->first();
+
+    return $this->_currentPlan;
+}
+
+// Typed property للـ cache
+private ?SubscriptionPlan $_currentPlan = null;
+
+/**
+ * جلب قيمة feature من الخطة الحالية.
+ *
+ * مثال:
+ *   $company->getPlanFeature('max_jobs_per_month') → '5'
+ *   $company->getPlanFeature('featured_jobs', '0') → '2'
+ */
+public function getPlanFeature(string $key, mixed $default = null): mixed
+{
+    return $this->currentPlan()?->getFeature($key, $default) ?? $default;
+}
+
+/**
+ * هل تجاوزت الشركة حد الوظائف هذا الشهر؟
+ */
+public function hasReachedJobLimit(): bool
+{
+    $limit = (int) $this->getPlanFeature('max_jobs_per_month', 2);
+
+    if ($limit === -1) return false; // غير محدود
+
+    $period = now()->format('Y-m');
+    $used   = SubscriptionUsage::where('company_id', $this->id)
+                ->where('feature_key', 'max_jobs_per_month')
+                ->where('period', $period)
+                ->value('used') ?? 0;
+
+    return $used >= $limit;
+}
+
+/**
+ * هل يمكن للشركة نشر وظيفة مميزة (featured)؟
+ */
+public function canPostFeatured(): bool
+{
+    $limit = (int) $this->getPlanFeature('featured_jobs', 0);
+    if ($limit === 0)  return false;
+    if ($limit === -1) return true;
+
+    $period = now()->format('Y-m');
+    $used   = SubscriptionUsage::where('company_id', $this->id)
+                ->where('feature_key', 'featured_jobs')
+                ->where('period', $period)
+                ->value('used') ?? 0;
+
+    return $used < $limit;
+}
+
+/**
+ * هل يمكن للشركة نشر وظيفة عاجلة (urgent)؟
+ */
+public function canPostUrgent(): bool
+{
+    $value = $this->getPlanFeature('urgent_jobs', 'false');
+    return in_array($value, ['true', '1', '-1']);
+}
+
+/**
+ * زيادة عداد استهلاك feature.
+ */
+public function incrementUsage(string $featureKey): void
+{
+    $period = now()->format('Y-m');
+
+    $record = SubscriptionUsage::firstOrCreate(
+        [
+            'company_id'  => $this->id,
+            'feature_key' => $featureKey,
+            'period'      => $period,
+        ],
+        ['used' => 0]
+    );
+
+    $record->increment('used');
+}
     // ========================================================
     // Query Scopes — للاستعلامات الشائعة
     // ========================================================

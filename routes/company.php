@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Company\ApplicationController;
 use App\Http\Controllers\Company\DashboardController;
 use App\Http\Controllers\Company\JobController;
+use App\Http\Controllers\Company\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================================
@@ -75,4 +76,9 @@ Route::middleware(['auth:company'])
 
         Route::patch('/applications/{application}/status', [ApplicationController::class, 'updateStatus'])
             ->name('applications.updateStatus');
+                    // الاشتراك
+        Route::get('/subscription',         [SubscriptionController::class, 'index'])
+            ->name('subscription.index');
+        Route::post('/subscription/request', [SubscriptionController::class, 'requestUpgrade'])
+            ->name('subscription.request');
     });

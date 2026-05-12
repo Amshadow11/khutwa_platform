@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Job\StoreJobRequest;
 use App\Http\Requests\Job\UpdateJobRequest;
 use App\Models\Job;
+use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,14 +15,14 @@ use Illuminate\View\View;
 
 class JobController extends Controller
 {
+    public function __construct(
+        private readonly SubscriptionService $subscriptionService
+    ) {}
+
     // ========================================================
-    // قائمة الوظائف — للشركة
+    // قائمة الوظائف
     // ========================================================
 
-    /**
-     * عرض قائمة وظائف الشركة مع إحصائياتها.
-     * GET /company/jobs
-     */
     public function index(Request $request): View
     {
         $company = Auth::guard('company')->user();
@@ -35,54 +36,64 @@ class JobController extends Controller
             ->latest()
             ->paginate(15);
 
-        return view('company.jobs.index', compact('jobs'));
+        // ملخص الاستهلاك للـ View
+        $usageSummary = $this->subscriptionService->getUsageSummary($company);
+
+        return view('company.jobs.index', compact('jobs', 'usageSummary'));
     }
 
     // ========================================================
     // إنشاء وظيفة
     // ========================================================
 
-    /**
-     * عرض نموذج إنشاء وظيفة جديدة.
-     * GET /company/jobs/create
-     */
     public function create(): View
     {
-        return view('company.jobs.create');
+        $company = Auth::guard('company')->user();
+
+        // نمرر معلومات الخطة للـ View لإظهار/إخفاء خيارات featured/urgent
+        $canFeatured = $this->subscriptionService->canPostFeatured($company);
+        $canUrgent   = $this->subscriptionService->canPostUrgent($company);
+        $canPost     = $this->subscriptionService->canPostJob($company);
+
+        return view('company.jobs.create', compact('canFeatured', 'canUrgent', 'canPost'));
     }
 
-    /**
-     * حفظ الوظيفة الجديدة.
-     * POST /company/jobs
-     *
-     * الـ Validation يحدث تلقائياً في StoreJobRequest قبل دخول هذه الدالة.
-     */
     public function store(StoreJobRequest $request): RedirectResponse
     {
         $company = Auth::guard('company')->user();
 
-        $company->jobs()->create($request->validated());
-        
+        // فحص حد الوظائف الشهري — خط الدفاع الأخير
+        if (! $this->subscriptionService->canPostJob($company)) {
+            return redirect()
+                ->route('company.jobs.create')
+                ->with('error', 'لقد تجاوزت الحد الشهري لنشر الوظائف. يرجى الترقية إلى خطة أعلى.');
+        }
+
+        $job = $company->jobs()->create($request->validated());
+
+        // تسجيل الاستهلاك
+        $this->subscriptionService->incrementUsage($company, 'max_jobs_per_month');
+
+        // تسجيل استهلاك featured إذا طُلب
+        if ($job->featured) {
+            $this->subscriptionService->incrementUsage($company, 'featured_jobs');
+        }
+
         $this->clearJobCache($company->id);
 
         return redirect()
             ->route('company.jobs.index')
             ->with('success', 'تم نشر الوظيفة بنجاح');
     }
+
     // ========================================================
-    // عرض وظيفة + تفاصيل المتقدمين
+    // عرض وظيفة
     // ========================================================
 
-    /**
-     * عرض تفاصيل وظيفة + قائمة المتقدمين.
-     * GET /company/jobs/{job}
-     */
     public function show(Job $job): View
     {
-        // التأكد أن الوظيفة تخص هذه الشركة
         $this->authorizeJob($job);
 
-        // Eager Loading: نجلب المتقدمين مع بياناتهم دفعة واحدة — لا N+1
         $job->load([
             'applications' => fn($q) => $q->with('user')->latest('applied_at'),
         ]);
@@ -102,96 +113,90 @@ class JobController extends Controller
     // تعديل وظيفة
     // ========================================================
 
-    /**
-     * عرض نموذج التعديل.
-     * GET /company/jobs/{job}/edit
-     */
     public function edit(Job $job): View
     {
         $this->authorizeJob($job);
 
-        return view('company.jobs.edit', compact('job'));
+        $company     = Auth::guard('company')->user();
+        $canFeatured = $this->subscriptionService->canPostFeatured($company);
+        $canUrgent   = $this->subscriptionService->canPostUrgent($company);
+
+        return view('company.jobs.edit', compact('job', 'canFeatured', 'canUrgent'));
     }
 
-    /**
-     * حفظ التعديلات.
-     * PUT /company/jobs/{job}
-     */
     public function update(UpdateJobRequest $request, Job $job): RedirectResponse
     {
         $this->authorizeJob($job);
 
+        $wasFeatured = $job->featured;
         $job->update($request->validated());
+
+        // تسجيل استهلاك featured إذا تغيّر من false → true
+        if (! $wasFeatured && $job->fresh()->featured) {
+            $company = Auth::guard('company')->user();
+            $this->subscriptionService->incrementUsage($company, 'featured_jobs');
+        }
+
         $this->clearJobCache($job->company_id);
+
         return redirect()
             ->route('company.jobs.show', $job)
             ->with('success', 'تم تحديث الوظيفة بنجاح');
     }
 
     // ========================================================
-    // حذف وظيفة (Soft Delete)
+    // حذف وظيفة
     // ========================================================
 
-    /**
-     * حذف الوظيفة (Soft Delete — يمكن استعادتها).
-     * DELETE /company/jobs/{job}
-     */
     public function destroy(Job $job): RedirectResponse
     {
         $this->authorizeJob($job);
 
-        $job->delete(); // Soft Delete فقط
-        $this->clearJobCache($job->company_id);
+        $companyId = $job->company_id;
+        $job->delete();
+
+        $this->clearJobCache($companyId);
+
         return redirect()
             ->route('company.jobs.index')
             ->with('success', 'تم حذف الوظيفة');
     }
 
     // ========================================================
-    // تغيير حالة الوظيفة (تفعيل/تعطيل)
+    // تغيير حالة الوظيفة
     // ========================================================
 
-    /**
-     * تبديل حالة الوظيفة بين نشط/معطّل.
-     * PATCH /company/jobs/{job}/toggle
-     */
     public function toggle(Job $job): RedirectResponse
     {
         $this->authorizeJob($job);
 
-        $newStatus  = $job->status === 'active' ? 'inactive' : 'active';
-        $isActive   = $newStatus === 'active';
+        $newStatus = $job->status === 'active' ? 'inactive' : 'active';
 
         $job->update([
             'status'    => $newStatus,
-            'is_active' => $isActive,
+            'is_active' => $newStatus === 'active',
         ]);
 
         $this->clearJobCache($job->company_id);
 
-        $label = $isActive ? 'تم تفعيل الوظيفة' : 'تم إيقاف الوظيفة';
+        $label = $newStatus === 'active' ? 'تم تفعيل الوظيفة' : 'تم إيقاف الوظيفة';
 
         return back()->with('success', $label);
     }
 
     // ========================================================
-    // دالة مساعدة: التأكد من ملكية الوظيفة
+    // Helpers
     // ========================================================
 
-    /**
-     * يتحقق أن الوظيفة تخص الشركة المسجّلة دخولها.
-     * يُوقف التنفيذ بـ 403 إذا لم تكن الوظيفة للشركة.
-     */
     private function authorizeJob(Job $job): void
     {
-        $companyId = Auth::guard('company')->id();
-
         abort_if(
-            $job->company_id !== $companyId,
+            $job->company_id !== Auth::guard('company')->id(),
             403,
             'غير مصرح لك بالوصول إلى هذه الوظيفة'
         );
     }
+
     private function clearJobCache(int $companyId): void
     {
         Cache::forget("company_dashboard_{$companyId}");
