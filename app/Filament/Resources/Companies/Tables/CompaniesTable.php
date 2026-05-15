@@ -37,12 +37,18 @@ class CompaniesTable
                     ->searchable(),
 
                 TextColumn::make('company_size')
-                    ->label('الحجم')
+                    ->label('حجم الشركة')
                     ->badge(),
 
                 TextColumn::make('status')
                     ->label('الحالة')
                     ->badge()
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'active'   => 'نشطة',
+                        'pending'  => 'قيد المراجعة',
+                        'inactive' => 'معطّلة',
+                        default    => $state,
+                    })
                     ->color(fn(string $state) => match($state) {
                         'active'   => 'success',
                         'pending'  => 'warning',
@@ -51,12 +57,18 @@ class CompaniesTable
                     }),
 
                 IconColumn::make('is_verified')
-                    ->label('متحقق')
+                    ->label('موثّقة')
                     ->boolean(),
 
                 TextColumn::make('subscription_plan')
-                    ->label('الاشتراك')
+                    ->label('خطة الاشتراك')
                     ->badge()
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'pro'   => 'احترافية',
+                        'basic' => 'أساسية',
+                        'free'  => 'مجانية',
+                        default => $state,
+                    })
                     ->color(fn(string $state) => match($state) {
                         'pro'   => 'success',
                         'basic' => 'info',
@@ -81,17 +93,18 @@ class CompaniesTable
                 SelectFilter::make('is_verified')
                     ->label('التحقق')
                     ->options([
-                        '1' => 'متحقق منها',
-                        '0' => 'غير متحقق',
+                        '1' => 'موثّقة',
+                        '0' => 'غير موثّقة',
                     ]),
 
-                TrashedFilter::make(),
+                TrashedFilter::make()
+                    ->label('المحذوفة'),
             ])
 
             ->recordActions([
-                ViewAction::make()->label('عرض'),
+                ViewAction::make()
+                    ->label('عرض'),
 
-                // ✅ Approve — تفعيل الشركة
                 Action::make('approve')
                     ->label('موافقة')
                     ->icon('heroicon-o-check-circle')
@@ -108,7 +121,6 @@ class CompaniesTable
                     })
                     ->successNotificationTitle('تمت الموافقة على الشركة'),
 
-                // ❌ Reject — رفض الشركة
                 Action::make('reject')
                     ->label('رفض')
                     ->icon('heroicon-o-x-circle')
@@ -125,14 +137,20 @@ class CompaniesTable
                     })
                     ->successNotificationTitle('تم رفض الشركة'),
 
-                EditAction::make()->label('تعديل'),
+                EditAction::make()
+                    ->label('تعديل'),
             ])
 
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->label('حذف'),
+
+                    ForceDeleteBulkAction::make()
+                        ->label('حذف نهائي'),
+
+                    RestoreBulkAction::make()
+                        ->label('استعادة'),
                 ]),
             ])
 

@@ -4,7 +4,9 @@ namespace App\Filament\Widgets;
 
 use App\Models\Application;
 use App\Models\Company;
+use App\Models\CompanySubscription;
 use App\Models\Job;
+use App\Models\SubscriptionUpgradeRequest;
 use App\Models\User;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -13,6 +15,16 @@ class StatsOverview extends StatsOverviewWidget
 {
     protected function getStats(): array
     {
+        $activeSubscriptions = CompanySubscription::where('status', 'active')
+            ->where(fn($q) => $q->whereNull('ends_at')->orWhere('ends_at', '>', now()))
+            ->count();
+
+        $trialSubscriptions = CompanySubscription::where('status', 'trial')
+            ->where('trial_ends_at', '>', now())
+            ->count();
+
+        $pendingRequests = SubscriptionUpgradeRequest::pending()->count();
+
         return [
             Stat::make('إجمالي المستخدمين', User::count())
                 ->description('باحثو العمل المسجّلون')
@@ -34,15 +46,15 @@ class StatsOverview extends StatsOverviewWidget
                 ->descriptionIcon('heroicon-o-briefcase')
                 ->color('success'),
 
-            Stat::make('إجمالي الطلبات', Application::count())
-                ->description('طلبات التوظيف المستلمة')
-                ->descriptionIcon('heroicon-o-document-text')
+            Stat::make('اشتراكات مدفوعة', $activeSubscriptions)
+                ->description($trialSubscriptions . ' في فترة تجربة')
+                ->descriptionIcon('heroicon-o-credit-card')
                 ->color('primary'),
 
-            Stat::make('طلبات اليوم', Application::whereDate('created_at', today())->count())
-                ->description('طلبات جديدة اليوم')
+            Stat::make('طلبات ترقية معلّقة', $pendingRequests)
+                ->description($pendingRequests > 0 ? 'تحتاج مراجعة' : 'لا يوجد طلبات')
                 ->descriptionIcon('heroicon-o-arrow-trending-up')
-                ->color('info'),
+                ->color($pendingRequests > 0 ? 'warning' : 'gray'),
         ];
     }
 }

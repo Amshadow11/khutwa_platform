@@ -34,6 +34,11 @@ class JobsTable
                 TextColumn::make('category')
                     ->label('النوع')
                     ->badge()
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'job'      => 'وظيفة',
+                        'training' => 'تدريب',
+                        default    => $state,
+                    })
                     ->color(fn(string $state) => match($state) {
                         'job'      => 'success',
                         'training' => 'info',
@@ -41,7 +46,7 @@ class JobsTable
                     }),
 
                 TextColumn::make('job_type')
-                    ->label('الدوام')
+                    ->label('نوع الدوام')
                     ->badge(),
 
                 TextColumn::make('location')
@@ -51,10 +56,18 @@ class JobsTable
                 TextColumn::make('status')
                     ->label('الحالة')
                     ->badge()
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'active'   => 'نشطة',
+                        'inactive' => 'معطّلة',
+                        'expired'  => 'منتهية',
+                        'draft'    => 'مسودة',
+                        default    => $state,
+                    })
                     ->color(fn(string $state) => match($state) {
                         'active'   => 'success',
                         'inactive' => 'danger',
                         'expired'  => 'warning',
+                        'draft'    => 'gray',
                         default    => 'gray',
                     }),
 
@@ -67,7 +80,7 @@ class JobsTable
                     ->boolean(),
 
                 TextColumn::make('views')
-                    ->label('المشاهدات')
+                    ->label('عدد المشاهدات')
                     ->numeric()
                     ->sortable(),
 
@@ -89,6 +102,7 @@ class JobsTable
                         'active'   => 'نشطة',
                         'inactive' => 'معطّلة',
                         'expired'  => 'منتهية',
+                        'draft'    => 'مسودة',
                     ]),
 
                 SelectFilter::make('category')
@@ -99,19 +113,20 @@ class JobsTable
                     ]),
 
                 SelectFilter::make('featured')
-                    ->label('مميزة')
+                    ->label('التمييز')
                     ->options([
                         '1' => 'مميزة',
                         '0' => 'عادية',
                     ]),
 
-                TrashedFilter::make(),
+                TrashedFilter::make()
+                    ->label('المحذوفة'),
             ])
 
             ->recordActions([
-                ViewAction::make()->label('عرض'),
+                ViewAction::make()
+                    ->label('عرض'),
 
-                // ✅ تفعيل الوظيفة
                 Action::make('activate')
                     ->label('تفعيل')
                     ->icon('heroicon-o-check-circle')
@@ -128,7 +143,6 @@ class JobsTable
                     })
                     ->successNotificationTitle('تم تفعيل الوظيفة'),
 
-                // ❌ إخفاء الوظيفة
                 Action::make('deactivate')
                     ->label('إخفاء')
                     ->icon('heroicon-o-eye-slash')
@@ -145,7 +159,6 @@ class JobsTable
                     })
                     ->successNotificationTitle('تم إخفاء الوظيفة'),
 
-                // ⭐ تمييز الوظيفة
                 Action::make('feature')
                     ->label('تمييز')
                     ->icon('heroicon-o-star')
@@ -156,7 +169,6 @@ class JobsTable
                     })
                     ->successNotificationTitle('تم تمييز الوظيفة'),
 
-                // ☆ إلغاء التمييز
                 Action::make('unfeature')
                     ->label('إلغاء التمييز')
                     ->icon('heroicon-o-star')
@@ -167,14 +179,20 @@ class JobsTable
                     })
                     ->successNotificationTitle('تم إلغاء تمييز الوظيفة'),
 
-                EditAction::make()->label('تعديل'),
+                EditAction::make()
+                    ->label('تعديل'),
             ])
 
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->label('حذف'),
+
+                    ForceDeleteBulkAction::make()
+                        ->label('حذف نهائي'),
+
+                    RestoreBulkAction::make()
+                        ->label('استعادة'),
                 ]),
             ])
 

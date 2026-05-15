@@ -2,14 +2,15 @@
 
 namespace App\Filament\Resources\Subscriptions\Tables;
 
-use App\Models\CompanySubscription;
 use App\Services\SubscriptionService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
 class SubscriptionsTable
@@ -107,7 +108,7 @@ class SubscriptionsTable
             ->recordActions([
                 ViewAction::make()->label('عرض'),
 
-                // ✅ تفعيل الاشتراك
+                // ✅ تفعيل — يمر بـ SubscriptionService لضمان Cache invalidation
                 Action::make('activate')
                     ->label('تفعيل')
                     ->icon('heroicon-o-check-circle')
@@ -115,13 +116,15 @@ class SubscriptionsTable
                     ->visible(fn($record) => $record->status !== 'active')
                     ->requiresConfirmation()
                     ->modalHeading('تفعيل الاشتراك')
+                    ->modalDescription('هل أنت متأكد من تفعيل هذا الاشتراك؟')
                     ->action(function ($record) {
+                        // تحديث الحالة + إبطال Cache
                         $record->update(['status' => 'active']);
                         app(SubscriptionService::class)->clearCache($record->company);
                     })
                     ->successNotificationTitle('تم تفعيل الاشتراك'),
 
-                // ❌ إلغاء الاشتراك
+                // ❌ إلغاء — يمر بـ SubscriptionService لضمان Cache invalidation
                 Action::make('cancel')
                     ->label('إلغاء')
                     ->icon('heroicon-o-x-circle')
@@ -135,7 +138,16 @@ class SubscriptionsTable
                             'status'       => 'cancelled',
                             'cancelled_at' => now(),
                         ]);
+
+                        // ← الإصلاح: clearCache يجب أن يُستدعى هنا
                         app(SubscriptionService::class)->clearCache($record->company);
+
+                        // تحديث الحقول القديمة في companies
+                        $record->company->update([
+                            'subscription'      => false,
+                            'subscription_plan' => 'free',
+                            'subscription_end'  => null,
+                        ]);
                     })
                     ->successNotificationTitle('تم إلغاء الاشتراك'),
             ])

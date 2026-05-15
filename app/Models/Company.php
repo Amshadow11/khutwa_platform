@@ -41,6 +41,7 @@ class Company extends Authenticatable implements CanResetPasswordContract
         'subscription_end',
         'status',
         'is_verified',
+        'trial_used_at',
     ];
 
     // ========================================================
@@ -63,6 +64,7 @@ class Company extends Authenticatable implements CanResetPasswordContract
         'views'                => 'integer',
         'last_login'           => 'datetime',
         'password'             => 'hashed', // تشفير تلقائي عند الحفظ
+        'trial_used_at'        => 'datetime',
     ];
 
     // ========================================================
@@ -304,5 +306,12 @@ public function incrementUsage(string $featureKey): void
     public function isSubscriptionActive(): bool
     {
         return $this->is_subscription_active;
+    }
+    /**
+ * هل الشركة استخدمت التجربة المجانية من قبل؟
+ */
+    public function hasUsedTrial(): bool
+    {
+        return ! is_null($this->trial_used_at);
     }
 }

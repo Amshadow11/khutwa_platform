@@ -77,8 +77,12 @@ Route::middleware(['auth:company'])
         Route::patch('/applications/{application}/status', [ApplicationController::class, 'updateStatus'])
             ->name('applications.updateStatus');
                     // الاشتراك
-        Route::get('/subscription',         [SubscriptionController::class, 'index'])
+        Route::get('/subscription',[SubscriptionController::class, 'index'])
             ->name('subscription.index');
-        Route::post('/subscription/request', [SubscriptionController::class, 'requestUpgrade'])
+        Route::post('/subscription/request',[SubscriptionController::class, 'requestUpgrade'])
             ->name('subscription.request');
+        Route::delete('/subscription/request/{upgradeRequest}/cancel',[SubscriptionController::class, 'cancelRequest'])
+            ->name('subscription.cancel');
+        Route::post('/subscription/trial', [SubscriptionController::class, 'startTrial'])
+            ->name('subscription.trial');
     });

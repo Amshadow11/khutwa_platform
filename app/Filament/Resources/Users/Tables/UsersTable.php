@@ -35,17 +35,22 @@ class UsersTable
                     ->searchable(),
 
                 IconColumn::make('email_verified_at')
-                    ->label('بريد مفعّل')
+                    ->label('البريد موثّق')
                     ->boolean()
                     ->getStateUsing(fn($record) => ! is_null($record->email_verified_at)),
 
                 TextColumn::make('phone')
-                    ->label('الهاتف')
+                    ->label('رقم الهاتف')
                     ->searchable(),
 
                 TextColumn::make('status')
                     ->label('الحالة')
                     ->badge()
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'active'   => 'نشط',
+                        'inactive' => 'معطّل',
+                        default    => $state,
+                    })
                     ->color(fn(string $state) => match($state) {
                         'active'   => 'success',
                         'inactive' => 'danger',
@@ -53,11 +58,11 @@ class UsersTable
                     }),
 
                 IconColumn::make('is_active')
-                    ->label('نشط')
+                    ->label('الحساب مفعل')
                     ->boolean(),
 
                 TextColumn::make('last_login')
-                    ->label('آخر دخول')
+                    ->label('آخر تسجيل دخول')
                     ->dateTime()
                     ->sortable(),
 
@@ -82,13 +87,14 @@ class UsersTable
                         '0' => 'معطّل',
                     ]),
 
-                TrashedFilter::make(),
+                TrashedFilter::make()
+                    ->label('المحذوفة'),
             ])
 
             ->recordActions([
-                ViewAction::make()->label('عرض'),
+                ViewAction::make()
+                    ->label('عرض'),
 
-                // ✅ تفعيل المستخدم
                 Action::make('activate')
                     ->label('تفعيل')
                     ->icon('heroicon-o-check-circle')
@@ -105,7 +111,6 @@ class UsersTable
                     })
                     ->successNotificationTitle('تم تفعيل المستخدم'),
 
-                // ❌ تعطيل المستخدم
                 Action::make('deactivate')
                     ->label('تعطيل')
                     ->icon('heroicon-o-x-circle')
@@ -122,14 +127,20 @@ class UsersTable
                     })
                     ->successNotificationTitle('تم تعطيل المستخدم'),
 
-                EditAction::make()->label('تعديل'),
+                EditAction::make()
+                    ->label('تعديل'),
             ])
 
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->label('حذف'),
+
+                    ForceDeleteBulkAction::make()
+                        ->label('حذف نهائي'),
+
+                    RestoreBulkAction::make()
+                        ->label('استعادة'),
                 ]),
             ])
 

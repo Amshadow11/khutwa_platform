@@ -2,38 +2,25 @@
 
 namespace App\Services;
 
+use App\Actions\Subscription\RequestUpgradeAction;
 use App\Models\Company;
 use App\Models\CompanySubscription;
 use App\Models\SubscriptionPlan;
+use App\Models\SubscriptionUpgradeRequest;
 use App\Models\SubscriptionUsage;
+use App\Enums\UpgradeRequestStatus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
-/**
- * SubscriptionService — الطبقة المركزية لكل منطق الاشتراكات.
- *
- * كل الـ checks تمر من هنا:
- *   - Web Controllers
- *   - Filament Admin
- *   - API (مستقبلاً)
- *   - Mobile (مستقبلاً)
- *
- * لا تكتب subscription logic في أي مكان آخر.
- */
 class SubscriptionService
 {
-    // ========================================================
-    // Cache TTL
-    // ========================================================
-    private const CACHE_TTL = 300; // 5 دقائق
+    private const CACHE_TTL = 300;
 
     // ========================================================
     // جلب بيانات الاشتراك
     // ========================================================
 
-    /**
-     * جلب الاشتراك الحالي النشط للشركة.
-     * مُخزَّن في Cache لتجنب N+1.
-     */
     public function getActiveSubscription(Company $company): ?CompanySubscription
     {
         return Cache::remember(
@@ -54,25 +41,36 @@ class SubscriptionService
         );
     }
 
-    /**
-     * جلب الخطة الحالية للشركة.
-     * إذا لا يوجد اشتراك → خطة Free.
-     */
     public function getCurrentPlan(Company $company): SubscriptionPlan
     {
         return Cache::remember(
             "company_plan_{$company->id}",
             self::CACHE_TTL,
-            fn() => $this->getActiveSubscription($company)?->plan
-                ?? SubscriptionPlan::with('features')
-                                   ->where('slug', 'free')
-                                   ->firstOrFail()
+            function () use ($company) {
+                $subscription = $this->getActiveSubscription($company);
+                if ($subscription?->plan) {
+                    return $subscription->plan;
+                }
+
+                $freePlan = SubscriptionPlan::with('features')
+                    ->where('slug', 'free')
+                    ->first();
+
+                if (! $freePlan) {
+                    Log::warning('SubscriptionService: Free plan not found. Run SubscriptionPlansSeeder.');
+                    $freePlan = new SubscriptionPlan([
+                        'name'  => 'مجاني',
+                        'slug'  => 'free',
+                        'price' => 0,
+                    ]);
+                    $freePlan->setRelation('features', collect());
+                }
+
+                return $freePlan;
+            }
         );
     }
 
-    /**
-     * جلب قيمة feature من الخطة الحالية.
-     */
     public function getFeature(Company $company, string $key, mixed $default = null): mixed
     {
         return $this->getCurrentPlan($company)->getFeature($key, $default);
@@ -82,133 +80,96 @@ class SubscriptionService
     // Feature Checks
     // ========================================================
 
-    /**
-     * هل الشركة مشتركة في خطة مدفوعة؟
-     */
     public function isPaid(Company $company): bool
     {
         $subscription = $this->getActiveSubscription($company);
         return $subscription && ! $subscription->plan->isFree();
     }
 
-    /**
-     * هل يمكن للشركة نشر وظيفة جديدة؟
-     */
     public function canPostJob(Company $company): bool
     {
         $limit = (int) $this->getFeature($company, 'max_jobs_per_month', 2);
-
-        if ($limit === -1) return true; // غير محدود
-
-        $used = $this->getMonthlyUsage($company, 'max_jobs_per_month');
-        return $used < $limit;
+        if ($limit === -1) return true;
+        return $this->getMonthlyUsage($company, 'max_jobs_per_month') < $limit;
     }
 
-    /**
-     * هل يمكن للشركة نشر وظيفة مميزة (featured)؟
-     */
     public function canPostFeatured(Company $company): bool
     {
         $limit = (int) $this->getFeature($company, 'featured_jobs', 0);
-
         if ($limit === 0)  return false;
         if ($limit === -1) return true;
-
-        $used = $this->getMonthlyUsage($company, 'featured_jobs');
-        return $used < $limit;
+        return $this->getMonthlyUsage($company, 'featured_jobs') < $limit;
     }
 
-    /**
-     * هل يمكن للشركة نشر وظيفة عاجلة (urgent)؟
-     */
     public function canPostUrgent(Company $company): bool
     {
         $value = $this->getFeature($company, 'urgent_jobs', 'false');
         return in_array($value, ['true', '1', '-1']);
     }
 
-    /**
-     * هل تجاوزت الشركة حد الرسائل هذا الشهر؟
-     */
     public function canSendMessage(Company $company): bool
     {
         $limit = (int) $this->getFeature($company, 'messaging_limit', 20);
-
         if ($limit === -1) return true;
-
-        $used = $this->getMonthlyUsage($company, 'messaging_limit');
-        return $used < $limit;
+        return $this->getMonthlyUsage($company, 'messaging_limit') < $limit;
     }
 
-    /**
-     * هل يمكن الوصول لـ Analytics؟
-     */
     public function hasAnalytics(Company $company): bool
     {
-        $value = $this->getFeature($company, 'analytics', 'false');
-        return in_array($value, ['true', '1']);
+        return in_array($this->getFeature($company, 'analytics', 'false'), ['true', '1']);
     }
 
-    /**
-     * هل يمكن الوصول لـ AI Matching؟
-     */
     public function hasAiMatching(Company $company): bool
     {
-        $value = $this->getFeature($company, 'ai_matching', 'false');
-        return in_array($value, ['true', '1']);
+        return in_array($this->getFeature($company, 'ai_matching', 'false'), ['true', '1']);
     }
 
     // ========================================================
     // Usage Tracking
     // ========================================================
 
-    /**
-     * جلب الاستهلاك الشهري لـ feature معينة.
-     */
     public function getMonthlyUsage(Company $company, string $featureKey): int
     {
-        $period = now()->format('Y-m');
-
         return SubscriptionUsage::where('company_id', $company->id)
             ->where('feature_key', $featureKey)
-            ->where('period', $period)
+            ->where('period', now()->format('Y-m'))
             ->value('used') ?? 0;
     }
 
-    /**
-     * زيادة عداد الاستهلاك لـ feature معينة.
-     */
     public function incrementUsage(Company $company, string $featureKey): void
     {
         $period = now()->format('Y-m');
 
-        $record = SubscriptionUsage::firstOrCreate(
-            [
-                'company_id'  => $company->id,
-                'feature_key' => $featureKey,
-                'period'      => $period,
-            ],
-            ['used' => 0]
-        );
+        DB::transaction(function () use ($company, $featureKey, $period) {
+            $record = SubscriptionUsage::where('company_id', $company->id)
+                ->where('feature_key', $featureKey)
+                ->where('period', $period)
+                ->lockForUpdate()
+                ->first();
 
-        $record->increment('used');
+            if ($record) {
+                $record->increment('used');
+            } else {
+                SubscriptionUsage::create([
+                    'company_id'  => $company->id,
+                    'feature_key' => $featureKey,
+                    'period'      => $period,
+                    'used'        => 1,
+                ]);
+            }
+        });
     }
 
     // ========================================================
     // Plan Management
     // ========================================================
 
-    /**
-     * تفعيل اشتراك جديد للشركة.
-     * يُستخدم من: Admin Panel / Payment Webhook.
-     */
     public function activateSubscription(
         Company $company,
         SubscriptionPlan $plan,
         int $months = 1,
         array $options = []
     ): CompanySubscription {
-        // إلغاء الاشتراك الحالي إذا وجد
         CompanySubscription::where('company_id', $company->id)
             ->whereIn('status', ['active', 'trial'])
             ->update(['status' => 'cancelled', 'cancelled_at' => now()]);
@@ -225,22 +186,17 @@ class SubscriptionService
             'notes'             => $options['notes'] ?? null,
         ]);
 
-        // تحديث الحقول القديمة في companies للتوافق العكسي
         $company->update([
             'subscription'      => true,
             'subscription_plan' => $plan->slug,
             'subscription_end'  => now()->addMonths($months),
         ]);
 
-        // إبطال Cache
         $this->clearCache($company);
 
         return $subscription;
     }
 
-    /**
-     * تفعيل Trial للشركة.
-     */
     public function startTrial(Company $company, SubscriptionPlan $plan): CompanySubscription
     {
         $trialDays = $plan->trial_days > 0 ? $plan->trial_days : 7;
@@ -259,9 +215,77 @@ class SubscriptionService
         return $subscription;
     }
 
+    // ========================================================
+    // Upgrade Request Management — Entry Points
+    // ========================================================
+
     /**
-     * إبطال Cache الاشتراك للشركة.
+     * إنشاء طلب ترقية جديد.
+     * Entry point للـ Controller — يفوّض للـ Action.
+     *
+     * @throws \RuntimeException من RequestUpgradeAction
      */
+    public function requestUpgrade(
+        Company $company,
+        SubscriptionPlan $toPlan,
+        int $months = 1,
+        ?string $notes = null
+    ): SubscriptionUpgradeRequest {
+        return app(RequestUpgradeAction::class)->execute(
+            $company, $toPlan, $months, $notes
+        );
+    }
+
+    /**
+     * إلغاء طلب الترقية من الشركة نفسها.
+     *
+     * @throws \RuntimeException إذا الطلب ليس pending أو لا يخص الشركة
+     */
+    public function cancelUpgradeRequest(
+        Company $company,
+        SubscriptionUpgradeRequest $upgradeRequest
+    ): void {
+        // التحقق أن الطلب يخص هذه الشركة
+        if ($upgradeRequest->company_id !== $company->id) {
+            throw new \RuntimeException('غير مصرح لك بإلغاء هذا الطلب.');
+        }
+
+        if (! $upgradeRequest->canBeCancelledByCompany()) {
+            throw new \RuntimeException(
+                "لا يمكن إلغاء طلب بحالة: {$upgradeRequest->status->label()}"
+            );
+        }
+
+        DB::transaction(function () use ($upgradeRequest) {
+            $upgradeRequest->update([
+                'status'       => UpgradeRequestStatus::Cancelled->value,
+                'cancelled_at' => now(),
+            ]);
+        });
+    }
+        /**
+     * تفعيل التجربة المجانية.
+     * Entry point للـ Controller — يفوّض للـ Action.
+     *
+     * @throws \RuntimeException من StartTrialAction
+     */
+    public function startFreeTrial(Company $company, SubscriptionPlan $plan): CompanySubscription
+    {
+        return app(\App\Actions\Subscription\StartTrialAction::class)->execute($company, $plan);
+    }
+
+    /**
+     * جلب الطلب الـ pending الحالي للشركة.
+     */
+    public function getPendingRequest(Company $company): ?SubscriptionUpgradeRequest
+    {
+        return SubscriptionUpgradeRequest::getPendingRequest($company->id);
+    }
+
+    // ========================================================
+    // Cache
+    // ========================================================
+
     public function clearCache(Company $company): void
     {
         Cache::forget("company_subscription_{$company->id}");
@@ -269,13 +293,10 @@ class SubscriptionService
     }
 
     // ========================================================
-    // Usage Summary (للـ Dashboard)
+    // Usage Summary
     // ========================================================
 
-    /**
-     * ملخص الاستهلاك الشهري للشركة.
-     */
-   public function getUsageSummary(Company $company): array
+    public function getUsageSummary(Company $company): array
     {
         $plan   = $this->getCurrentPlan($company);
         $period = now()->format('Y-m');
