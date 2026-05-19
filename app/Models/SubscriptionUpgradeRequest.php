@@ -29,6 +29,7 @@ class SubscriptionUpgradeRequest extends Model
         'payment_method',
         'payment_reference',
         'resulting_subscription_id',
+        'stripe_session_id',
     ];
 
     protected $casts = [

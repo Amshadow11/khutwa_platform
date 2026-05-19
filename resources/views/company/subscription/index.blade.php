@@ -390,15 +390,42 @@
                         {{-- لا زر للخطة المجانية --}}
 
                     @else
-                        <form action="{{ route('company.subscription.request') }}" method="POST">
-                            @csrf
-                            <input type="hidden" name="plan_id" value="{{ $plan->id }}">
-                            <button type="submit"
-                                    class="btn-upgrade {{ $plan->slug === 'pro' ? 'primary' : 'outline' }}">
-                                <i class="fas fa-arrow-up me-1"></i>
-                                الترقية إلى {{ $plan->name }}
-                            </button>
-                        </form>
+                        @if($plan->hasStripePrice())
+                            {{-- ✅ زر الدفع عبر Stripe (الخيار الرئيسي) --}}
+                            <form action="{{ route('stripe.checkout.create') }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="plan_id" value="{{ $plan->id }}">
+                                <button type="submit"
+                                        class="btn-upgrade {{ $plan->slug === 'pro' ? 'primary' : 'outline' }}">
+                                    <i class="fab fa-stripe me-1"></i>
+                                    ادفع الآن — {{ $plan->name }}
+                                </button>
+                            </form>
+
+                            {{-- رابط الطلب اليدوي كخيار بديل --}}
+                            <form action="{{ route('company.subscription.request') }}" method="POST" class="mt-1">
+                                @csrf
+                                <input type="hidden" name="plan_id" value="{{ $plan->id }}">
+                                <button type="submit"
+                                        style="width:100%;background:none;border:none;color:#94a3b8;font-size:.75rem;font-family:inherit;cursor:pointer;padding:.25rem;text-decoration:underline"
+                                        onmouseover="this.style.color='#2C5AA0'"
+                                        onmouseout="this.style.color='#94a3b8'">
+                                    أو اطلب الترقية يدوياً
+                                </button>
+                            </form>
+
+                        @else
+                            {{-- ✅ طلب يدوي فقط (الخطة بدون Stripe Price) --}}
+                            <form action="{{ route('company.subscription.request') }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="plan_id" value="{{ $plan->id }}">
+                                <button type="submit"
+                                        class="btn-upgrade {{ $plan->slug === 'pro' ? 'primary' : 'outline' }}">
+                                    <i class="fas fa-arrow-up me-1"></i>
+                                    الترقية إلى {{ $plan->name }}
+                                </button>
+                            </form>
+                        @endif
                     @endif
 
                     @if($plan->trial_days > 0 && ! $isCurrent && ! $pendingRequest)

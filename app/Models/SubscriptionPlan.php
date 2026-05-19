@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Builder;
 
 class SubscriptionPlan extends Model
 {
@@ -18,6 +18,7 @@ class SubscriptionPlan extends Model
         'sort_order',
         'is_active',
         'is_public',
+        'stripe_price_id', // ← جديد
     ];
 
     protected $casts = [
@@ -56,17 +57,23 @@ class SubscriptionPlan extends Model
         return $query->where('is_public', true)->orderBy('sort_order');
     }
 
+    /**
+     * الخطط التي لها Stripe Price ID — جاهزة للدفع الإلكتروني.
+     */
+    public function scopeWithStripe(Builder $query): Builder
+    {
+        return $query->whereNotNull('stripe_price_id');
+    }
+
     // ========================================================
     // Methods
     // ========================================================
 
     /**
      * جلب قيمة feature — يعتمد على features المحمّلة مسبقاً.
-     * لا تستدعِ هذه الدالة بدون eager loading features.
      */
     public function getFeature(string $key, mixed $default = null): mixed
     {
-        // تأكد أن features محمّلة — لا تعمل query إضافية
         if (! $this->relationLoaded('features')) {
             $this->load('features');
         }
@@ -75,18 +82,11 @@ class SubscriptionPlan extends Model
         return $feature ? $feature->feature_value : $default;
     }
 
-    /**
-     * قيمة feature كـ integer.
-     * -1 = غير محدود، 0 = معطّل، N = الحد
-     */
     public function getFeatureInt(string $key, int $default = 0): int
     {
         return (int) $this->getFeature($key, $default);
     }
 
-    /**
-     * قيمة feature كـ boolean.
-     */
     public function getFeatureBool(string $key, bool $default = false): bool
     {
         $val = $this->getFeature($key);
@@ -94,11 +94,18 @@ class SubscriptionPlan extends Model
         return in_array($val, ['true', '1', 'yes', '-1']);
     }
 
-    /**
-     * هل هذه الخطة مجانية？
-     */
     public function isFree(): bool
     {
         return $this->slug === 'free' || (float) $this->price === 0.0;
+    }
+
+    /**
+     * هل الخطة مربوطة بـ Stripe؟
+     * false → الدفع يدوي فقط (Manual Flow)
+     * true  → يمكن الدفع الإلكتروني عبر Stripe Checkout
+     */
+    public function hasStripePrice(): bool
+    {
+        return ! empty($this->stripe_price_id);
     }
 }

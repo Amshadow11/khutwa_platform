@@ -42,6 +42,7 @@ class Company extends Authenticatable implements CanResetPasswordContract
         'status',
         'is_verified',
         'trial_used_at',
+        'stripe_customer_id',
     ];
 
     // ========================================================
@@ -65,6 +66,7 @@ class Company extends Authenticatable implements CanResetPasswordContract
         'last_login'           => 'datetime',
         'password'             => 'hashed', // تشفير تلقائي عند الحفظ
         'trial_used_at'        => 'datetime',
+        'stripe_customer_id'   => 'string',
     ];
 
     // ========================================================
@@ -313,5 +315,33 @@ public function incrementUsage(string $featureKey): void
     public function hasUsedTrial(): bool
     {
         return ! is_null($this->trial_used_at);
+    }
+    // ========================================================
+    // Stripe Helpers
+    // ========================================================
+
+    /**
+     * هل للشركة Stripe Customer ID؟
+     */
+    public function hasStripeCustomer(): bool
+    {
+        return ! empty($this->stripe_customer_id);
+    }
+
+    /**
+     * علاقة الفواتير.
+     */
+    public function invoices(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PaymentInvoice::class)
+                    ->orderByDesc('created_at');
+    }
+
+    /**
+     * الفاتورة الأخيرة.
+     */
+    public function latestInvoice(): ?\App\Models\PaymentInvoice
+    {
+        return $this->invoices()->first();
     }
 }

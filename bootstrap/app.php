@@ -20,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
             channels: __DIR__ . '/../routes/channels.php', 
 
         health: '/up',
+          then: function () {
+        Route::middleware('web')
+            ->group(base_path('routes/stripe.php'));
+    },
     )
 
     ->withMiddleware(function (Middleware $middleware) {
@@ -27,7 +31,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\SecurityHeaders::class,
         ]);
-
+        // إعفاء Stripe Webhook من CSRF
+        $middleware->validateCsrfTokens(except: [
+          'stripe/webhook',
+        ]);
         $middleware->alias([
             'auth'         => Authenticate::class,
 
