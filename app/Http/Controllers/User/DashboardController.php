@@ -32,6 +32,7 @@ class DashboardController extends Controller
             'total_applications'  => Application::where('user_id', $user->id)->count(),
             'pending'             => Application::where('user_id', $user->id)->where('status', 'pending')->count(),
             'accepted'            => Application::where('user_id', $user->id)->where('status', 'accepted')->count(),
+            'resumes'             => $user->resumes()->count(),
         ];
 
         return view('user.dashboard', compact('user', 'recentApplications', 'stats'));

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Widgets;
+namespace App\Filament\Resources\Subscriptions\Widgets;
 
 use App\Models\Application;
 use App\Models\Company;

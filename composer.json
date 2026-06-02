@@ -8,9 +8,13 @@
     "require": {
         "php": "^8.2",
         "filament/filament": "*",
+        "gemini-api-php/laravel": "^0.3.0",
         "laravel/framework": "^11.31",
         "laravel/reverb": "^1.0",
         "laravel/tinker": "^2.9",
+        "openai-php/laravel": "^0.19.1",
+        "spatie/browsershot": "^5.3",
+        "spatie/laravel-permission": "6.15",
         "stripe/stripe-php": "^20.1"
     },
     "require-dev": {

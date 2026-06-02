@@ -79,7 +79,7 @@ class Job extends Model
     public function applicants(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(User::class, 'applications')
-                    ->withPivot(['status', 'cover_letter', 'applied_at'])
+                    ->withPivot(['status', 'cover_letter', 'cv_path', 'resume_id', 'submitted_resume_pdf_path', 'applied_at'])
                     ->withTimestamps();
     }
 

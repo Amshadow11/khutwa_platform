@@ -90,7 +90,7 @@
             @endif
 
             {{-- ملف CV --}}
-            @if($application->cv_url)
+            @if($application->submitted_resume_pdf_url)
             <div class="card border-0 shadow-sm mb-3">
                 <div class="card-body p-3 d-flex align-items-center gap-3">
                     <div class="rounded p-2 bg-danger bg-opacity-10">
@@ -100,7 +100,7 @@
                         <div class="fw-semibold">السيرة الذاتية المرفقة</div>
                         <div class="text-muted small">PDF</div>
                     </div>
-                    <a href="{{ $application->cv_url }}" target="_blank"
+                    <a href="{{ $application->submitted_resume_pdf_url }}" target="_blank"
                        class="btn btn-sm btn-outline-danger rounded-pill px-3">
                         <i class="fas fa-download me-1"></i>تحميل
                     </a>

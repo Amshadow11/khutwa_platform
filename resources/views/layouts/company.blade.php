@@ -353,6 +353,11 @@
             <span>الطلبات الواردة</span>
             {{-- Badge للطلبات الجديدة — يُضاف لاحقاً مع Notifications --}}
         </a>
+        <a href="{{ route('company.applications.pipeline') }}"
+           class="sidebar-link {{ request()->routeIs('company.applications.pipeline') ? 'active' : '' }}">
+            <i class="fas fa-columns"></i>
+            <span>ATS Pipeline</span>
+        </a>
 
         <div class="sidebar-heading">التواصل</div>
 
@@ -479,6 +484,10 @@
     <a href="{{ route('company.applications.index') }}"
        class="{{ request()->routeIs('company.applications.*') ? 'active' : '' }}">
         <i class="fas fa-users"></i><span>الطلبات</span>
+    </a>
+    <a href="{{ route('company.applications.pipeline') }}"
+       class="{{ request()->routeIs('company.applications.pipeline') ? 'active' : '' }}">
+        <i class="fas fa-columns"></i><span>ATS</span>
     </a>
     <a href="#">
         <i class="fas fa-building"></i><span>الملف</span>

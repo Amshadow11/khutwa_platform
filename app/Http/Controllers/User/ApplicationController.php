@@ -2,26 +2,28 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Actions\Applications\CaptureApplicationResumeSnapshotAction;
+use App\Actions\ATS\LogApplicationActivityAction;
+use App\Actions\Files\StorePrivateUploadAction;
+use App\Events\UserAppliedToJob;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\StoreApplicationRequest;
 use App\Models\Application;
 use App\Models\Job;
+use App\Services\Files\PrivateFileStorageService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use App\Notifications\ApplicationReceived;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 class ApplicationController extends Controller
 {
-    // ========================================================
-    // قائمة طلبات المستخدم
-    // ========================================================
+    public function __construct(
+        private readonly StorePrivateUploadAction $storePrivateUpload,
+        private readonly PrivateFileStorageService $files,
+    ) {}
 
-    /**
-     * GET /user/applications
-     */
     public function index(Request $request): View
     {
         $user = Auth::guard('web')->user();
@@ -29,148 +31,110 @@ class ApplicationController extends Controller
         $applications = Application::with([
             'job:id,title,location,job_type,company_id,status,deadline',
             'job.company:id,company_name,logo',
+            'resume:id,title,version_number',
         ])
             ->where('user_id', $user->id)
-            ->when($request->status, fn($q, $s) => $q->where('status', $s))
+            ->when($request->status, fn ($query, $status) => $query->where('status', $status))
             ->latest('applied_at')
             ->paginate(12);
 
-        // إحصائيات سريعة
         $rawStats = Application::where('user_id', $user->id)
             ->selectRaw('status, COUNT(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status');
 
         $stats = [
-            'total'       => $rawStats->sum(),
-            'pending'     => $rawStats->get('pending', 0),
+            'total' => $rawStats->sum(),
+            'pending' => $rawStats->get('pending', 0),
             'shortlisted' => $rawStats->get('shortlisted', 0),
-            'accepted'    => $rawStats->get('accepted', 0),
-            'rejected'    => $rawStats->get('rejected', 0),
+            'accepted' => $rawStats->get('accepted', 0),
+            'rejected' => $rawStats->get('rejected', 0),
         ];
+
         return view('user.applications.index', compact('applications', 'stats'));
     }
 
-    // ========================================================
-    // التقديم على وظيفة
-    // ========================================================
-
-    /**
-     * POST /jobs/{job}/apply
-     *
-     * Validation في StoreApplicationRequest قبل دخول الدالة.
-     */
-    public function store(StoreApplicationRequest $request, Job $job): RedirectResponse
+    public function store(
+        StoreApplicationRequest $request,
+        Job $job,
+        CaptureApplicationResumeSnapshotAction $captureSnapshot
+    ): RedirectResponse
     {
-        // التحقق أن الوظيفة نشطة وغير منتهية
-        abort_if(! $job->is_active || $job->status !== 'active', 404, 'هذه الوظيفة غير متاحة');
-        abort_if($job->is_expired, 422, 'انتهى موعد التقديم على هذه الوظيفة');
-
         $user = Auth::guard('web')->user();
+        Gate::forUser($user)->authorize('apply', $job);
 
-        // منع التقديم المزدوج
         $alreadyApplied = Application::where('job_id', $job->id)
-                                     ->where('user_id', $user->id)
-                                     ->exists();
+            ->where('user_id', $user->id)
+            ->exists();
 
         if ($alreadyApplied) {
-            return back()->with('error', 'لقد تقدمت على هذه الوظيفة مسبقاً');
+            return back()->with('error', 'لقد تقدمت على هذه الوظيفة مسبقًا');
         }
 
-        // رفع ملف CV إذا أُرسل
         $cvPath = null;
         if ($request->hasFile('cv')) {
-            // التحقق الإضافي من MIME الفعلي (ليس الامتداد فقط)
-            $finfo = new \finfo(FILEINFO_MIME_TYPE);
-            $realMime = $finfo->file($request->file('cv')->path());
-
-            abort_if($realMime !== 'application/pdf', 422, 'الملف يجب أن يكون PDF حقيقي');
-
-            $cvPath = $request->file('cv')->store(
+            $storedCv = $this->storePrivateUpload->execute(
+                $request->file('cv'),
                 'cvs/' . date('Y/m'),
-                'public'
+                config('files.allowed_cv_mimes')
             );
+            $cvPath = $storedCv->path;
         }
 
-        // إنشاء الطلب
-        $application = Application::create([
-            'job_id'          => $job->id,
-            'user_id'         => $user->id,
-            'cover_letter'    => $request->cover_letter,
-            'cv_path'         => $cvPath,
-            'applicant_name'  => $user->display_name,
+        $selectedResume = null;
+        if ($request->filled('resume_id')) {
+            $selectedResume = $user->resumes()
+                ->whereKey($request->integer('resume_id'))
+                ->firstOrFail();
+        }
+
+        $resumeSnapshot = $captureSnapshot->execute($user, $selectedResume, $cvPath);
+
+        $application = Application::create(array_merge([
+            'job_id' => $job->id,
+            'user_id' => $user->id,
+            'cover_letter' => $request->cover_letter,
+            'cv_path' => $cvPath,
+            'applicant_name' => $user->display_name,
             'applicant_email' => $user->email,
             'applicant_phone' => $user->phone,
-            'status'          => Application::STATUS_PENDING,
-            'applied_at'      => now(),
-        ]);
+            'status' => Application::STATUS_PENDING,
+            'applied_at' => now(),
+        ], $resumeSnapshot));
 
-        // إشعار الشركة باستلام طلب جديد
-        $application->load('user', 'job');
-        $job->company->notify(new ApplicationReceived($application));
+        UserAppliedToJob::dispatch($application);
+        app(LogApplicationActivityAction::class)->execute(
+            $application,
+            null,
+            'application_submitted',
+            'تم إرسال طلب التقديم.',
+        );
 
         return redirect()
             ->route('user.applications.index')
             ->with('success', "تم إرسال طلبك على وظيفة \"{$job->title}\" بنجاح");
     }
 
-    // ========================================================
-    // تفاصيل طلب واحد
-    // ========================================================
-
-    /**
-     * GET /user/applications/{application}
-     */
     public function show(Application $application): View
     {
-        $this->authorizeApplication($application);
+        Gate::forUser(Auth::guard('web')->user())->authorize('view', $application);
 
         $application->load([
             'job.company',
+            'resume:id,title,version_number',
             'statusHistory',
         ]);
 
         return view('user.applications.show', compact('application'));
     }
 
-    // ========================================================
-    // سحب الطلب (Withdraw)
-    // ========================================================
-
-    /**
-     * DELETE /user/applications/{application}
-     *
-     * يسمح بالسحب فقط إذا كان الطلب في حالة pending أو viewed.
-     */
     public function destroy(Application $application): RedirectResponse
     {
-        $this->authorizeApplication($application);
+        Gate::forUser(Auth::guard('web')->user())->authorize('withdraw', $application);
 
-        // لا يمكن سحب الطلب بعد مرحلة الاختصار
-        if (in_array($application->status, ['shortlisted', 'interview', 'accepted', 'rejected'])) {
-            return back()->with('error', 'لا يمكن سحب الطلب بعد وصوله لهذه المرحلة');
-        }
-
-        // حذف ملف CV من Storage إذا كان موجوداً ومخزناً محلياً
-        if ($application->cv_path && Storage::disk('public')->exists($application->cv_path)) {
-            Storage::disk('public')->delete($application->cv_path);
-        }
-
-        $application->delete(); // Soft Delete
+        $this->files->delete($application->cv_path);
+        $application->delete();
 
         return back()->with('success', 'تم سحب طلبك بنجاح');
-    }
-
-    // ========================================================
-    // Helper
-    // ========================================================
-
-    private function authorizeApplication(Application $application): void
-    {
-        abort_if(
-            $application->user_id !== Auth::guard('web')->id(),
-            403,
-            'غير مصرح لك بالوصول لهذا الطلب'
-        );
     }
 }

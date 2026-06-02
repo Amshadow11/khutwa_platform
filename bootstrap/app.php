@@ -11,6 +11,8 @@ use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Auth\Access\AuthorizationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Illuminate\Support\Facades\Route;
+use App\Http\Middleware\EnsureSensitiveAccountVerified;
 
 return Application::configure(basePath: dirname(__DIR__))
 
@@ -42,6 +44,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'throttle'     => ThrottleRequests::class,
             'auth.company' => EnsureCompanyAuthenticated::class,
             'company.verified' => EnsureCompanyVerified::class,
+            'sensitive.verified' => EnsureSensitiveAccountVerified::class,
             'verified' => EnsureEmailIsVerified::class,
         ]);
 

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Company\ApplicationController;
+use App\Http\Controllers\Company\ATSController;
 use App\Http\Controllers\Company\DashboardController;
 use App\Http\Controllers\Company\JobController;
 use App\Http\Controllers\Company\SubscriptionController;
@@ -63,6 +64,14 @@ Route::middleware(['auth:company'])
             Route::put('/jobs/{job}',         [JobController::class, 'update'])->name('jobs.update');
             Route::delete('/jobs/{job}',      [JobController::class, 'destroy'])->name('jobs.destroy');
             Route::patch('/jobs/{job}/toggle',[JobController::class, 'toggle'])->name('jobs.toggle');
+            Route::patch('/applications/{application}/status', [ApplicationController::class, 'updateStatus'])
+                ->name('applications.updateStatus');
+            Route::post('/applications/{application}/notes', [ATSController::class, 'storeNote'])
+                ->name('applications.notes.store');
+            Route::post('/applications/{application}/review', [ATSController::class, 'review'])
+                ->name('applications.review');
+            Route::post('/applications/{application}/interviews', [ATSController::class, 'scheduleInterview'])
+                ->name('applications.interviews.store');
         });
         // تفعيل/تعطيل وظيفة — خارج Resource
         // ------------------------------------------------
@@ -71,11 +80,12 @@ Route::middleware(['auth:company'])
         Route::get('/applications', [ApplicationController::class, 'index'])
             ->name('applications.index');
 
+        Route::get('/applications/pipeline', [ApplicationController::class, 'pipeline'])
+            ->name('applications.pipeline');
+
         Route::get('/applications/{application}', [ApplicationController::class, 'show'])
             ->name('applications.show');
 
-        Route::patch('/applications/{application}/status', [ApplicationController::class, 'updateStatus'])
-            ->name('applications.updateStatus');
                     // الاشتراك
         Route::get('/subscription',[SubscriptionController::class, 'index'])
             ->name('subscription.index');

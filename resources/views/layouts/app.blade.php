@@ -255,6 +255,11 @@
                             <i class="fas fa-user me-1"></i>>الملف الشخصي
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('user.resumes.*') ? 'active' : '' }}" href="{{ route('user.resumes.index') }}">
+                            <i class="fas fa-file-lines me-1"></i>السير الذاتية
+                        </a>
+                    </li>
      
                     <li class="nav-item">
                         <form action="{{ route('logout') }}" method="POST" class="d-inline">
@@ -345,6 +350,11 @@
            class="{{ request()->routeIs('user.profile*') ? 'active' : '' }}">
             <i class="fas fa-user"></i>
             <span>الملف</span>
+        </a>
+        <a href="{{ route('user.resumes.index') }}"
+           class="{{ request()->routeIs('user.resumes.*') ? 'active' : '' }}">
+            <i class="fas fa-file-lines"></i>
+            <span>CV</span>
         </a>
         <form action="{{ route('logout') }}" method="POST" class="d-inline" style="flex:1;">
             @csrf

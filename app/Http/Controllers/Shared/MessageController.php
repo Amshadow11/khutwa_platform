@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Shared;
 
+use App\Actions\Files\StorePrivateUploadAction;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Conversation;
@@ -11,12 +12,16 @@ use App\Notifications\NewMessage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use App\Events\MessageSent;
 
 class MessageController extends Controller
 {
+    public function __construct(
+        private readonly StorePrivateUploadAction $storePrivateUpload,
+    ) {}
+
     // ========================================================
     // تحديد هوية المستخدم الحالي
     // ========================================================
@@ -84,7 +89,7 @@ class MessageController extends Controller
     public function show(Conversation $conversation): View
     {
         $auth = $this->currentAuth();
-        $this->authorizeConversation($conversation, $auth);
+        Gate::forUser($auth['model'])->authorize('view', $conversation);
 
         // تحديد الغير مقروء للطرف الحالي
         $conversation->markReadFor($auth['type']);
@@ -123,6 +128,7 @@ class MessageController extends Controller
 
         if (Auth::guard('company')->check()) {
             $company = Auth::guard('company')->user();
+            Gate::forUser($company)->authorize('create', Conversation::class);
             abort_unless($request->filled('user_id'), 422);
 
             $conversation = Conversation::firstOrCreate([
@@ -133,6 +139,7 @@ class MessageController extends Controller
         } else {
             abort_unless(Auth::guard('web')->check(), 403);
             $user = Auth::guard('web')->user();
+            Gate::forUser($user)->authorize('create', Conversation::class);
             abort_unless($request->filled('company_id'), 422);
 
             $conversation = Conversation::firstOrCreate([
@@ -155,7 +162,7 @@ class MessageController extends Controller
     public function send(Request $request, Conversation $conversation): RedirectResponse
     {
         $auth = $this->currentAuth();
-        $this->authorizeConversation($conversation, $auth);
+        Gate::forUser($auth['model'])->authorize('view', $conversation);
 
         $request->validate([
             'body'       => ['required_without:attachment', 'nullable', 'string', 'max:3000'],
@@ -173,24 +180,14 @@ class MessageController extends Controller
 
         if ($request->hasFile('attachment')) {
             $file           = $request->file('attachment');
-            $finfo    = new \finfo(FILEINFO_MIME_TYPE);
-            $realMime = $finfo->file($file->path());
-
-            $allowedMimes = [
-                'application/pdf',
-                'image/jpeg',
-                'image/png',
-                'image/webp',
-            ];
-
-            abort_if(
-                ! in_array($realMime, $allowedMimes, true),
-                422,
-                'نوع الملف غير مدعوم. الملفات المسموحة: PDF, JPG, PNG, WEBP'
+            $storedAttachment = $this->storePrivateUpload->execute(
+                $file,
+                'messages/' . date('Y/m'),
+                config('files.allowed_message_attachment_mimes')
             );
-            $attachmentPath = $file->store('messages/' . date('Y/m'), 'public');
-            $attachmentName = $file->getClientOriginalName();
-            $attachmentType = $file->getMimeType();
+            $attachmentPath = $storedAttachment->path;
+            $attachmentName = $storedAttachment->originalName;
+            $attachmentType = $storedAttachment->mimeType;
         }
 
         // إنشاء الرسالة
@@ -220,16 +217,4 @@ class MessageController extends Controller
             ->with('success', 'تم إرسال الرسالة');
     }
 
-    // ========================================================
-    // Helper
-    // ========================================================
-
-    private function authorizeConversation(Conversation $conversation, array $auth): void
-    {
-        $allowed = $auth['type'] === Company::class
-            ? $conversation->company_id === $auth['model']->id
-            : $conversation->user_id   === $auth['model']->id;
-
-        abort_if(! $allowed, 403, 'غير مصرح لك بالوصول لهذه المحادثة');
-    }
 }

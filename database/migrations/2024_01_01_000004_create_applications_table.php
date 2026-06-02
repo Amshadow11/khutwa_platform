@@ -46,8 +46,6 @@ return new class extends Migration
             ])->default('pending');
 
             // --- ملاحظات الشركة ---
-            $table->text('notes')->nullable();
-
             // --- التواريخ ---
             $table->timestamp('status_updated_at')->nullable();
             $table->timestamp('applied_at')->useCurrent(); // وقت التقديم الفعلي

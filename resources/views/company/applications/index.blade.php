@@ -4,7 +4,6 @@
 @section('page-title', 'الطلبات الواردة')
 
 @section('content')
-
 {{-- إحصائيات سريعة --}}
 <div class="row g-3 mb-4">
     @php
@@ -29,6 +28,14 @@
 {{-- الفلاتر --}}
 <div class="card mb-3">
     <div class="card-body py-2">
+        <div class="d-flex gap-2 flex-wrap mb-2">
+            <a href="{{ route('company.applications.index') }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                <i class="fas fa-list me-1"></i>القائمة
+            </a>
+            <a href="{{ route('company.applications.pipeline') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                <i class="fas fa-columns me-1"></i>مسار التوظيف
+            </a>
+        </div>
         <form method="GET" action="{{ route('company.applications.index') }}"
               class="d-flex gap-2 align-items-center flex-wrap">
 
@@ -90,10 +97,10 @@
                                  style="width:38px;height:38px;border-radius:50%;object-fit:cover" alt="">
                             <div>
                                 <div class="fw-semibold" style="font-size:.88rem">
-                                    {{ $app->user->display_name }}
+                                    {{ $app->candidate_name }}
                                 </div>
                                 <div class="text-muted" style="font-size:.75rem">
-                                    {{ $app->user->phone ?? $app->user->email }}
+                                    {{ $app->candidate_phone ?? $app->candidate_email }}
                                 </div>
                             </div>
                         </div>
@@ -143,7 +150,7 @@
                 <img src="{{ $app->user->avatar_url }}"
                      style="width:44px;height:44px;border-radius:50%;object-fit:cover" alt="">
                 <div class="flex-grow-1 overflow-hidden">
-                    <div class="fw-semibold">{{ $app->user->display_name }}</div>
+                    <div class="fw-semibold">{{ $app->candidate_name }}</div>
                     <div class="text-muted" style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                         {{ $app->job->title ?? '—' }}
                     </div>

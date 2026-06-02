@@ -279,6 +279,27 @@
             <div class="modal-body">
                 <form action="/apply/{{ $job->id }}" method="Post" enctype="multipart/form-data">
                     @csrf
+                    @if(($availableResumes ?? collect())->isNotEmpty())
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Saved resume</label>
+                        <select name="resume_id" class="form-select">
+                            <option value="">Use current profile snapshot or upload PDF</option>
+                            @foreach($availableResumes as $resume)
+                                <option value="{{ $resume->id }}">
+                                    {{ $resume->title }} - v{{ $resume->version_number }}
+                                    @if($resume->template)
+                                        - {{ $resume->template->name }}
+                                    @endif
+                                    @if($resume->generated_pdf_path)
+                                        - PDF ready
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text">The selected resume snapshot is frozen with this application.</div>
+                    </div>
+                    <div class="text-muted small mb-2">or</div>
+                    @endif
                     <div class="mb-3">
                         <label class="form-label fw-semibold">رسالة التغطية (اختياري)</label>
                         <textarea name="cover_letter" class="form-control" rows="4"

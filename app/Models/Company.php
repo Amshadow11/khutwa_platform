@@ -13,10 +13,11 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Spatie\Permission\Traits\HasRoles;
 
 class Company extends Authenticatable implements CanResetPasswordContract
 {
-    use HasFactory, Notifiable, SoftDeletes, CanResetPassword;
+    use CanResetPassword, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     // ========================================================
     // الحقول المسموح بتعبئتها (Mass Assignment Protection)

@@ -81,6 +81,35 @@
     </a>
 </div>
 
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <a href="{{ route('company.applications.pipeline') }}" class="card text-decoration-none h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="bg-primary bg-opacity-10 text-primary" style="width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center">
+                    <i class="fas fa-columns"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-dark">ATS Pipeline</div>
+                    <div class="small text-muted">إدارة المرشحين عبر مراحل التوظيف</div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6">
+        <a href="{{ route('company.applications.index') }}" class="card text-decoration-none h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="bg-info bg-opacity-10 text-info" style="width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center">
+                    <i class="fas fa-list-check"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-dark">قائمة الطلبات</div>
+                    <div class="small text-muted">فلترة وبحث في جميع الطلبات</div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
 {{-- ===== أحدث الطلبات ===== --}}
 <div class="card">
     <div class="card-header d-flex align-items-center justify-content-between">
@@ -123,8 +152,8 @@
                                 <img src="{{ $app->user->avatar_url }}"
                                      class="applicant-avatar" alt="">
                                 <div>
-                                    <div class="fw-semibold">{{ $app->user->display_name }}</div>
-                                    <div class="text-muted" style="font-size:.78rem">{{ $app->user->email }}</div>
+                                    <div class="fw-semibold">{{ $app->candidate_name }}</div>
+                                    <div class="text-muted" style="font-size:.78rem">{{ $app->candidate_email }}</div>
                                 </div>
                             </div>
                         </td>
@@ -157,7 +186,7 @@
                     <img src="{{ $app->user->avatar_url }}"
                          class="applicant-avatar" alt="">
                     <div class="flex-grow-1">
-                        <div class="fw-semibold" style="font-size:.9rem">{{ $app->user->display_name }}</div>
+                        <div class="fw-semibold" style="font-size:.9rem">{{ $app->candidate_name }}</div>
                         <div class="text-muted" style="font-size:.78rem">{{ $app->job->title ?? '—' }}</div>
                     </div>
                     <span class="badge bg-{{ $app->status_color }}">

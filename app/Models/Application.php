@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use App\Notifications\ApplicationStatusChanged;
+use Illuminate\Support\Facades\URL;
 
 class Application extends Model
 {
@@ -40,14 +41,19 @@ class Application extends Model
     protected $fillable = [
         'job_id',
         'user_id',
+        'resume_id',
         'cover_letter',
         'cv_path',
+        'resume_snapshot',
+        'resume_snapshot_hash',
+        'resume_snapshot_version',
+        'resume_snapshot_created_at',
+        'submitted_resume_pdf_path',
         'about',
         'applicant_name',
         'applicant_email',
         'applicant_phone',
         'status',
-        'notes',
         'applied_at',
     ];
 
@@ -57,6 +63,9 @@ class Application extends Model
     protected $casts = [
         'applied_at'        => 'datetime',
         'status_updated_at' => 'datetime',
+        'resume_snapshot' => 'array',
+        'resume_snapshot_version' => 'integer',
+        'resume_snapshot_created_at' => 'datetime',
     ];
 
     // ========================================================
@@ -79,6 +88,11 @@ class Application extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function resume(): BelongsTo
+    {
+        return $this->belongsTo(Resume::class);
+    }
+
     /**
      * تاريخ تغييرات حالة الطلب.
      * One-to-Many: طلب واحد → سجلات تاريخ كثيرة
@@ -87,6 +101,26 @@ class Application extends Model
     {
         return $this->hasMany(ApplicationStatusHistory::class)
                     ->orderBy('changed_at', 'asc');
+    }
+
+    public function atsNotes(): HasMany
+    {
+        return $this->hasMany(ApplicationNote::class)->latest();
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(ApplicationReview::class)->latest();
+    }
+
+    public function interviews(): HasMany
+    {
+        return $this->hasMany(ApplicationInterview::class)->latest('scheduled_at');
+    }
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(ApplicationActivity::class)->latest('occurred_at');
     }
 
     // ========================================================
@@ -140,7 +174,6 @@ class Application extends Model
         $this->update([
             'status'            => $newStatus,
             'status_updated_at' => now(),
-            'notes'             => $note ?? $this->notes,
         ]);
 
         // تسجيل في التاريخ
@@ -215,6 +248,79 @@ class Application extends Model
         if (str_starts_with($this->cv_path, 'uploads/')) {
             return asset($this->cv_path);
         }
-        return asset('storage/' . $this->cv_path);
+
+        return URL::temporarySignedRoute(
+            'secure-files.applications.cv',
+            now()->addMinutes(config('files.signed_url_ttl_minutes')),
+            ['application' => $this->id]
+        );
+    }
+
+    public function getSubmittedResumePdfUrlAttribute(): ?string
+    {
+        if ($this->submitted_resume_pdf_path) {
+            return URL::temporarySignedRoute(
+                'secure-files.applications.submitted-resume',
+                now()->addMinutes(config('files.signed_url_ttl_minutes')),
+                ['application' => $this->id]
+            );
+        }
+
+        return $this->cv_url;
+    }
+
+    public function getSnapshotIdentityAttribute(): array
+    {
+        return $this->resume_snapshot['identity'] ?? [];
+    }
+
+    public function getCandidateNameAttribute(): string
+    {
+        return $this->snapshot_identity['name']
+            ?? $this->applicant_name
+            ?? $this->user?->display_name
+            ?? 'متقدم';
+    }
+
+    public function getCandidateEmailAttribute(): ?string
+    {
+        return $this->snapshot_identity['email']
+            ?? $this->applicant_email
+            ?? $this->user?->email;
+    }
+
+    public function getCandidatePhoneAttribute(): ?string
+    {
+        return $this->snapshot_identity['phone']
+            ?? $this->applicant_phone
+            ?? $this->user?->phone;
+    }
+
+    public function getCandidateHeadlineAttribute(): ?string
+    {
+        return $this->snapshot_identity['headline']
+            ?? $this->snapshot_identity['current_title']
+            ?? null;
+    }
+
+    public function getCandidateLocationAttribute(): ?string
+    {
+        $parts = collect([
+            $this->snapshot_identity['city'] ?? null,
+            $this->snapshot_identity['country'] ?? null,
+        ])->filter();
+
+        return $parts->isNotEmpty()
+            ? $parts->implode(', ')
+            : $this->user?->address;
+    }
+
+    public function getSnapshotSkillsSummaryAttribute(): string
+    {
+        return collect($this->resume_snapshot['skills'] ?? [])
+            ->pluck('name')
+            ->filter()
+            ->take(8)
+            ->implode(', ');
     }
 }

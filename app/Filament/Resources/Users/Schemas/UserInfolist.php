@@ -76,21 +76,6 @@ class UserInfolist
                     ->label('رابط معرض الأعمال')
                     ->placeholder('-'),
 
-                TextEntry::make('skills')
-                    ->label('المهارات')
-                    ->placeholder('-')
-                    ->columnSpanFull(),
-
-                TextEntry::make('experience')
-                    ->label('الخبرات')
-                    ->placeholder('-')
-                    ->columnSpanFull(),
-
-                TextEntry::make('education')
-                    ->label('التعليم')
-                    ->placeholder('-')
-                    ->columnSpanFull(),
-
                 TextEntry::make('status')
                     ->label('الحالة')
                     ->badge(),

@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 class JobController extends Controller
@@ -49,6 +50,7 @@ class JobController extends Controller
     public function create(): View
     {
         $company = Auth::guard('company')->user();
+        Gate::forUser($company)->authorize('create', Job::class);
 
         // نمرر معلومات الخطة للـ View لإظهار/إخفاء خيارات featured/urgent
         $canFeatured = $this->subscriptionService->canPostFeatured($company);
@@ -61,6 +63,7 @@ class JobController extends Controller
     public function store(StoreJobRequest $request): RedirectResponse
     {
         $company = Auth::guard('company')->user();
+        Gate::forUser($company)->authorize('create', Job::class);
 
         // فحص حد الوظائف الشهري — خط الدفاع الأخير
         if (! $this->subscriptionService->canPostJob($company)) {
@@ -92,10 +95,15 @@ class JobController extends Controller
 
     public function show(Job $job): View
     {
-        $this->authorizeJob($job);
+        Gate::forUser(Auth::guard('company')->user())->authorize('view', $job);
 
         $job->load([
-            'applications' => fn($q) => $q->with('user')->latest('applied_at'),
+            'applications' => fn($q) => $q
+                ->with([
+                    'user:id,username,full_name,email,phone,profile_picture',
+                    'resume:id,title,version_number',
+                ])
+                ->latest('applied_at'),
         ]);
 
         $applicationStats = [
@@ -115,7 +123,7 @@ class JobController extends Controller
 
     public function edit(Job $job): View
     {
-        $this->authorizeJob($job);
+        Gate::forUser(Auth::guard('company')->user())->authorize('update', $job);
 
         $company     = Auth::guard('company')->user();
         $canFeatured = $this->subscriptionService->canPostFeatured($company);
@@ -126,7 +134,7 @@ class JobController extends Controller
 
     public function update(UpdateJobRequest $request, Job $job): RedirectResponse
     {
-        $this->authorizeJob($job);
+        Gate::forUser(Auth::guard('company')->user())->authorize('update', $job);
 
         $wasFeatured = $job->featured;
         $job->update($request->validated());
@@ -150,7 +158,7 @@ class JobController extends Controller
 
     public function destroy(Job $job): RedirectResponse
     {
-        $this->authorizeJob($job);
+        Gate::forUser(Auth::guard('company')->user())->authorize('delete', $job);
 
         $companyId = $job->company_id;
         $job->delete();
@@ -168,7 +176,7 @@ class JobController extends Controller
 
     public function toggle(Job $job): RedirectResponse
     {
-        $this->authorizeJob($job);
+        Gate::forUser(Auth::guard('company')->user())->authorize('toggle', $job);
 
         $newStatus = $job->status === 'active' ? 'inactive' : 'active';
 
@@ -187,15 +195,6 @@ class JobController extends Controller
     // ========================================================
     // Helpers
     // ========================================================
-
-    private function authorizeJob(Job $job): void
-    {
-        abort_if(
-            $job->company_id !== Auth::guard('company')->id(),
-            403,
-            'غير مصرح لك بالوصول إلى هذه الوظيفة'
-        );
-    }
 
     private function clearJobCache(int $companyId): void
     {

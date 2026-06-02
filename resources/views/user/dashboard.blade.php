@@ -46,7 +46,7 @@
 
     {{-- Stats --}}
     <div class="row g-3 mb-4">
-        <div class="col-4">
+        <div class="col-6 col-md-3">
             <div class="stat-card-u">
                 <div class="icon bg-primary bg-opacity-10 text-primary">
                     <i class="fas fa-paper-plane"></i>
@@ -55,7 +55,7 @@
                 <div class="lbl">طلباتي</div>
             </div>
         </div>
-        <div class="col-4">
+        <div class="col-6 col-md-3">
             <div class="stat-card-u">
                 <div class="icon bg-warning bg-opacity-10 text-warning">
                     <i class="fas fa-clock"></i>
@@ -64,13 +64,22 @@
                 <div class="lbl">قيد المراجعة</div>
             </div>
         </div>
-        <div class="col-4">
+        <div class="col-6 col-md-3">
             <div class="stat-card-u">
                 <div class="icon bg-success bg-opacity-10 text-success">
                     <i class="fas fa-check-circle"></i>
                 </div>
                 <div class="val">{{ $stats['accepted'] }}</div>
                 <div class="lbl">مقبولة</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card-u">
+                <div class="icon bg-info bg-opacity-10 text-info">
+                    <i class="fas fa-file-lines"></i>
+                </div>
+                <div class="val">{{ $stats['resumes'] }}</div>
+                <div class="lbl">السير الذاتية</div>
             </div>
         </div>
     </div>
@@ -85,6 +94,48 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     @endif
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <a href="{{ route('user.profile.show') }}" class="card h-100 text-decoration-none">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="icon bg-primary bg-opacity-10 text-primary" style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center">
+                        <i class="fas fa-id-card"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark">الملف المهني</div>
+                        <div class="small text-muted">إدارة الخبرات والمهارات والرابط العام</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="{{ route('user.resumes.index') }}" class="card h-100 text-decoration-none">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="icon bg-info bg-opacity-10 text-info" style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center">
+                        <i class="fas fa-file-lines"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark">Resume Builder</div>
+                        <div class="small text-muted">إنشاء وتعديل السير الذاتية</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-4">
+            <a href="{{ route('user.resumes.create') }}" class="card h-100 text-decoration-none">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="icon bg-success bg-opacity-10 text-success" style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark">سيرة جديدة</div>
+                        <div class="small text-muted">أنشئ نسخة مخصصة للتقديم</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
 
     {{-- آخر الطلبات --}}
     <div class="card">

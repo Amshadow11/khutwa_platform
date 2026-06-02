@@ -29,9 +29,6 @@ class UpdateProfileRequest extends FormRequest
             'linkedin_url'    => ['nullable', 'url', 'max:255'],
             'github_url'      => ['nullable', 'url', 'max:255'],
             'portfolio_url'   => ['nullable', 'url', 'max:255'],
-            'skills'          => ['nullable', 'string', 'max:2000'],
-            'experience'      => ['nullable', 'string', 'max:3000'],
-            'education'       => ['nullable', 'string', 'max:2000'],
             'profile_picture' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
     }

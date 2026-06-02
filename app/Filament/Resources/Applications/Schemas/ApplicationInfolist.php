@@ -48,11 +48,6 @@ class ApplicationInfolist
                     ->label('الحالة')
                     ->badge(),
 
-                TextEntry::make('notes')
-                    ->label('الملاحظات')
-                    ->placeholder('-')
-                    ->columnSpanFull(),
-
                 TextEntry::make('status_updated_at')
                     ->label('تاريخ تحديث الحالة')
                     ->dateTime()

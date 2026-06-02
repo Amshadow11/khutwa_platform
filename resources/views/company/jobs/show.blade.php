@@ -102,10 +102,10 @@
                                              style="width:36px;height:36px;border-radius:50%;object-fit:cover" alt="">
                                         <div>
                                             <div class="fw-semibold" style="font-size:.88rem">
-                                                {{ $app->user->display_name }}
+                                                {{ $app->candidate_name }}
                                             </div>
                                             <div class="text-muted" style="font-size:.75rem">
-                                                {{ $app->user->email }}
+                                                {{ $app->candidate_email }}
                                             </div>
                                         </div>
                                     </div>
@@ -115,8 +115,8 @@
                                     <small>{{ $app->applied_at?->diffForHumans() }}</small>
                                 </td>
                                 <td>
-                                    @if($app->cv_url)
-                                        <a href="{{ $app->cv_url }}" target="_blank"
+                                    @if($app->submitted_resume_pdf_url)
+                                        <a href="{{ $app->submitted_resume_pdf_url }}" target="_blank"
                                            class="btn btn-sm btn-outline-danger rounded-pill px-2">
                                             <i class="fas fa-file-pdf"></i>
                                         </a>
@@ -162,7 +162,7 @@
                                 <img src="{{ $app->user->avatar_url }}"
                                      style="width:40px;height:40px;border-radius:50%;object-fit:cover" alt="">
                                 <div class="flex-grow-1">
-                                    <div class="fw-semibold" style="font-size:.88rem">{{ $app->user->display_name }}</div>
+                                    <div class="fw-semibold" style="font-size:.88rem">{{ $app->candidate_name }}</div>
                                     <div class="text-muted" style="font-size:.75rem">
                                         {{ $app->applied_at?->diffForHumans() }}
                                     </div>

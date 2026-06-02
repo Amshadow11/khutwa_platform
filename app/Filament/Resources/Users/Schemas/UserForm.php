@@ -91,21 +91,6 @@ class UserForm
                     ->url()
                     ->default(null),
 
-                Textarea::make('skills')
-                    ->label('المهارات')
-                    ->default(null)
-                    ->columnSpanFull(),
-
-                Textarea::make('experience')
-                    ->label('الخبرات')
-                    ->default(null)
-                    ->columnSpanFull(),
-
-                Textarea::make('education')
-                    ->label('التعليم')
-                    ->default(null)
-                    ->columnSpanFull(),
-
                 Select::make('status')
                     ->label('الحالة')
                     ->options([

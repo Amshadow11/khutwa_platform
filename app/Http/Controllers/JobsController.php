@@ -51,8 +51,24 @@ class JobsController extends Controller
 
         // هل المستخدم الحالي قدّم على هذه الوظيفة؟
         $hasApplied = false;
+        $availableResumes = collect();
         if (auth('web')->check()) {
             $hasApplied = auth('web')->user()->hasAppliedTo($job->id);
+            $availableResumes = auth('web')->user()
+                ->resumes()
+                ->with('template:id,name')
+                ->select([
+                    'id',
+                    'user_id',
+                    'template_id',
+                    'title',
+                    'version_number',
+                    'snapshot_created_at',
+                    'generated_pdf_path',
+                    'pdf_status',
+                ])
+                ->latest()
+                ->get();
         }
 
         // وظائف مشابهة من نفس الشركة أو نفس الموقع
@@ -66,6 +82,6 @@ class JobsController extends Controller
             ->limit(4)
             ->get();
 
-        return view('jobs.show', compact('job', 'hasApplied', 'relatedJobs'));
+        return view('jobs.show', compact('job', 'hasApplied', 'relatedJobs', 'availableResumes'));
     }
 }

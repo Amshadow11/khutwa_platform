@@ -1,22 +1,25 @@
 <?php
 
 namespace App\Models;
+
 use Illuminate\Auth\Passwords\CanResetPassword;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Panel;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements MustVerifyEmail, CanResetPasswordContract, FilamentUser
 {
-    use HasFactory, Notifiable, SoftDeletes, CanResetPassword;
+    use CanResetPassword, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     // ========================================================
     // الحقول المسموح بتعبئتها
@@ -36,9 +39,6 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPasswordC
         'linkedin_url',
         'github_url',
         'portfolio_url',
-        'skills',
-        'experience',
-        'education',
         'status',
         'is_active',
     ];
@@ -85,6 +85,65 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPasswordC
         return $this->hasMany(Conversation::class);
     }
 
+    public function professionalProfile(): HasOne
+    {
+        return $this->hasOne(ProfessionalProfile::class);
+    }
+
+    public function experiences(): HasMany
+    {
+        return $this->hasMany(UserExperience::class)->orderBy('sort_order');
+    }
+
+    public function educations(): HasMany
+    {
+        return $this->hasMany(UserEducation::class)->orderBy('sort_order');
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(UserProject::class)->orderBy('sort_order');
+    }
+
+    public function certifications(): HasMany
+    {
+        return $this->hasMany(UserCertification::class)->orderBy('sort_order');
+    }
+
+    public function resumes(): HasMany
+    {
+        return $this->hasMany(Resume::class);
+    }
+
+    public function canonicalSkills(): BelongsToMany
+    {
+        return $this->belongsToMany(Skill::class, 'user_skills')
+            ->using(UserSkill::class)
+            ->withPivot([
+                'id',
+                'proficiency_level',
+                'proficiency_score',
+                'years_experience',
+                'is_featured',
+                'endorsement_count',
+                'source',
+                'confidence_score',
+                'sort_order',
+                'evidence',
+            ])
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
+    }
+
+    public function languages(): BelongsToMany
+    {
+        return $this->belongsToMany(Language::class, 'user_languages')
+            ->using(UserLanguage::class)
+            ->withPivot(['id', 'proficiency_level', 'proficiency_score', 'is_native', 'sort_order'])
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
+    }
+
     /**
      * إجمالي الرسائل غير المقروءة.
      */
@@ -100,7 +159,7 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPasswordC
     public function appliedJobs(): BelongsToMany
     {
         return $this->belongsToMany(Job::class, 'applications')
-                    ->withPivot(['status', 'cover_letter', 'cv_path', 'applied_at'])
+                    ->withPivot(['status', 'cover_letter', 'cv_path', 'resume_id', 'submitted_resume_pdf_path', 'applied_at'])
                     ->withTimestamps();
     }
 
@@ -157,7 +216,7 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPasswordC
     }
     public function canAccessPanel(Panel $panel): bool
     {
-        return true; // لاحقاً نقيّده بـ is_admin
+        return $this->hasRole('admin') || $this->can('access admin panel');
     }
     public function getNameAttribute(): string
     {

@@ -31,7 +31,11 @@ class DashboardController extends Controller
             ];
         });
 
-        $recentApplications = Application::with(['user:id,username,full_name,profile_picture', 'job:id,title'])
+        $recentApplications = Application::with([
+            'user:id,username,full_name,email,phone,profile_picture',
+            'job:id,title',
+            'resume:id,title,version_number',
+        ])
             ->whereIn('job_id', $company->jobs()->pluck('id'))
             ->latest('applied_at')
             ->limit(8)

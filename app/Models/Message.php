@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\URL;
 
 class Message extends Model
 {
@@ -57,7 +58,11 @@ class Message extends Model
     public function getAttachmentUrlAttribute(): ?string
     {
         return $this->attachment_path
-            ? asset('storage/' . $this->attachment_path)
+            ? URL::temporarySignedRoute(
+                'secure-files.messages.attachment',
+                now()->addMinutes(config('files.signed_url_ttl_minutes')),
+                ['message' => $this->id]
+            )
             : null;
     }
 

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\User\UpdateProfileRequest;
+use App\Actions\Profile\RefreshProfessionalProfileAction;
 use App\Http\Requests\User\ChangePasswordRequest;
+use App\Http\Requests\User\UpdateProfileRequest;
+use App\Models\Language;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -20,10 +22,21 @@ class ProfileController extends Controller
     /**
      * GET /user/profile
      */
-    public function show(): View
+    public function show(RefreshProfessionalProfileAction $refreshProfile): View
     {
-        $user = Auth::guard('web')->user();
-        return view('user.profile.show', compact('user'));
+        $user = Auth::guard('web')->user()->load([
+            'professionalProfile',
+            'canonicalSkills',
+            'experiences',
+            'educations',
+            'projects',
+            'certifications',
+            'languages',
+        ]);
+
+        $completion = $refreshProfile->execute($user);
+
+        return view('user.profile.show', compact('user', 'completion'));
     }
 
     // ========================================================
@@ -35,14 +48,25 @@ class ProfileController extends Controller
      */
     public function edit(): View
     {
-        $user = Auth::guard('web')->user();
-        return view('user.profile.edit', compact('user'));
+        $user = Auth::guard('web')->user()->load([
+            'professionalProfile',
+            'canonicalSkills',
+            'experiences',
+            'educations',
+            'projects',
+            'certifications',
+            'languages',
+        ]);
+        $profile = $user->professionalProfile()->firstOrCreate([]);
+        $languages = Language::query()->where('is_active', true)->orderBy('name')->get();
+
+        return view('user.profile.edit', compact('user', 'profile', 'languages'));
     }
 
     /**
      * PUT /user/profile
      */
-    public function update(UpdateProfileRequest $request): RedirectResponse
+    public function update(UpdateProfileRequest $request, RefreshProfessionalProfileAction $refreshProfile): RedirectResponse
     {
         $user = Auth::guard('web')->user();
         $data = $request->validated();
@@ -70,6 +94,7 @@ class ProfileController extends Controller
         unset($data['password']);
 
         $user->update($data);
+        $refreshProfile->execute($user->fresh());
 
         return redirect()
             ->route('user.profile.show')

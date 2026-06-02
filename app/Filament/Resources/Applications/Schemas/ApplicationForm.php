@@ -65,11 +65,6 @@ class ApplicationForm
                     ->default('pending')
                     ->required(),
 
-                Textarea::make('notes')
-                    ->label('الملاحظات')
-                    ->default(null)
-                    ->columnSpanFull(),
-
                 DateTimePicker::make('status_updated_at')
                     ->label('تاريخ تحديث الحالة'),
 
