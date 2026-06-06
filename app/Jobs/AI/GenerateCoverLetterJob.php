@@ -48,4 +48,9 @@ class GenerateCoverLetterJob implements ShouldQueue
             'message' => $exception?->getMessage() ?: 'AI generation failed.',
         ], now()->addDay());
     }
+
+    public function tags(): array
+    {
+        return ['ai', 'cover-letter', 'user:' . $this->userId, 'job:' . $this->jobId];
+    }
 }

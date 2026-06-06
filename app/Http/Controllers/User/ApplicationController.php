@@ -108,6 +108,8 @@ class ApplicationController extends Controller
             null,
             'application_submitted',
             'تم إرسال طلب التقديم.',
+            [],
+            $user,
         );
 
         return redirect()

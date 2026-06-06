@@ -31,7 +31,7 @@ class SecureFileController extends Controller
     {
         $actor = Auth::guard('company')->user() ?: Auth::guard('web')->user();
 
-        Gate::forUser($actor)->authorize('downloadCv', $application);
+        Gate::forUser($actor)->authorize('downloadSubmittedResume', $application);
         abort_unless($application->submitted_resume_pdf_path, 404);
 
         return $this->files->download(

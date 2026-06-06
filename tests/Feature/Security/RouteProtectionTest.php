@@ -17,6 +17,8 @@ class RouteProtectionTest extends TestCase
             'company.jobs.update',
             'company.jobs.destroy',
             'company.jobs.toggle',
+            'company.jobs.matches.run',
+            'company.matches.index',
         ] as $routeName) {
             $this->assertContains('company.verified', $routes[$routeName]->gatherMiddleware());
         }

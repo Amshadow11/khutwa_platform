@@ -47,6 +47,17 @@ class JobPolicy
             && ! $job->is_expired;
     }
 
+    public function runMatching(Company $company, Job $job): bool
+    {
+        return $this->ownsVerifiedCompanyJob($company, $job);
+    }
+
+    public function viewMatches(Company $company, Job $job): bool
+    {
+        return $job->company_id === $company->id
+            && $company->status === 'active';
+    }
+
     private function ownsVerifiedCompanyJob(Company $company, Job $job): bool
     {
         return $job->company_id === $company->id

@@ -4,12 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ApplicationActivity extends Model
 {
     protected $fillable = [
         'application_id',
-        'company_id',
+        'actor_type',
+        'actor_id',
         'type',
         'description',
         'metadata',
@@ -26,8 +28,8 @@ class ApplicationActivity extends Model
         return $this->belongsTo(Application::class);
     }
 
-    public function company(): BelongsTo
+    public function actor(): MorphTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->morphTo();
     }
 }

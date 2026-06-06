@@ -27,11 +27,6 @@ class ApplicationInfolist
                     ->label('السيرة الذاتية')
                     ->placeholder('-'),
 
-                TextEntry::make('about')
-                    ->label('نبذة')
-                    ->placeholder('-')
-                    ->columnSpanFull(),
-
                 TextEntry::make('applicant_name')
                     ->label('اسم المتقدم')
                     ->placeholder('-'),

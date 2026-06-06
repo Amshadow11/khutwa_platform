@@ -3,16 +3,13 @@
 namespace App\Actions\AI;
 
 use App\Models\Job;
-use App\Models\SubscriptionPlan;
 use App\Models\User;
 use App\Services\AI\AIService;
-use App\Services\SubscriptionService;
 
 class GenerateCoverLetterAction
 {
     public function __construct(
         private readonly AIService $aiService,
-        private readonly SubscriptionService $subscriptionService,
     ) {}
 
     /**

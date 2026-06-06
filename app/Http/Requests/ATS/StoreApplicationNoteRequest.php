@@ -8,7 +8,7 @@ class StoreApplicationNoteRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user('company')?->can('view', $this->route('application')) ?? false;
+        return $this->user('company')?->can('addNote', $this->route('application')) ?? false;
     }
 
     public function rules(): array

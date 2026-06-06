@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -21,6 +22,7 @@ class ApplicationResumeSnapshotTest extends TestCase
     public function test_selected_resume_snapshot_is_frozen_when_profile_and_resume_change_after_applying(): void
     {
         Notification::fake();
+        Storage::fake('private');
 
         $user = $this->createUser();
         $job = $this->createJob();
@@ -33,6 +35,7 @@ class ApplicationResumeSnapshotTest extends TestCase
 
         $snapshot = $this->resumeSnapshot($user, 'Original resume headline');
         $resume = $this->createResume($user, $snapshot);
+        Storage::disk('private')->put($resume->generated_pdf_path, 'pdf-bytes');
 
         $this->actingAs($user, 'web')
             ->post(route('jobs.apply', $job), [
@@ -46,7 +49,9 @@ class ApplicationResumeSnapshotTest extends TestCase
         $this->assertSame($resume->id, $application->resume_id);
         $this->assertSame('Original resume headline', $application->resume_snapshot['identity']['headline']);
         $this->assertSame($resume->snapshot_hash, $application->resume_snapshot_hash);
-        $this->assertSame($resume->generated_pdf_path, $application->submitted_resume_pdf_path);
+        $this->assertNotNull($application->submitted_resume_pdf_path);
+        $this->assertNotSame($resume->generated_pdf_path, $application->submitted_resume_pdf_path);
+        Storage::disk('private')->assertExists($application->submitted_resume_pdf_path);
 
         $user->professionalProfile()->update(['headline' => 'Changed profile headline']);
         $resume->update([
@@ -66,6 +71,34 @@ class ApplicationResumeSnapshotTest extends TestCase
             ->assertOk()
             ->assertSee('Original resume headline')
             ->assertDontSee('Changed resume headline');
+
+        $this->actingAs($job->company, 'company')
+            ->get(route('company.applications.pipeline'))
+            ->assertOk()
+            ->assertSee('Original resume headline')
+            ->assertDontSee('Changed resume headline');
+
+        $this->actingAs($job->company, 'company')
+            ->post(route('company.applications.review', $application), [
+                'rating' => 4,
+                'recommendation' => 'yes',
+                'rubric_scores' => [
+                    'technical_fit' => 5,
+                    'experience_fit' => 4,
+                    'role_fit' => 4,
+                    'communication' => 3,
+                ],
+                'strengths' => 'Strong Laravel background.',
+            ])
+            ->assertRedirect();
+
+        $review = $application->reviews()->firstOrFail();
+
+        $this->assertNotNull($review->overall_score);
+        $this->assertSame($application->resume_snapshot_hash, $review->evaluated_snapshot_hash);
+        $this->assertSame($application->resume_snapshot_version, $review->evaluated_snapshot_version);
+        $this->assertSame($application->resume_snapshot_hash, $review->match_signals['snapshot_hash']);
+        $this->assertSame(5, $review->rubric_scores['technical_fit']);
     }
 
     public function test_current_professional_profile_snapshot_is_frozen_when_no_resume_is_selected(): void

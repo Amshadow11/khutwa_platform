@@ -30,15 +30,45 @@ class ApplicationPolicy
             ], true);
     }
 
-    public function updateStatus(Company $company, Application $application): bool
+    public function transitionStatus(Company $company, Application $application): bool
     {
         return (int) $application->job?->company_id === (int) $company->id
             && $company->is_verified
             && $company->status === 'active';
     }
 
+    public function addNote(Company $company, Application $application): bool
+    {
+        return $this->transitionStatus($company, $application);
+    }
+
+    public function review(Company $company, Application $application): bool
+    {
+        return $this->transitionStatus($company, $application);
+    }
+
+    public function scheduleInterview(Company $company, Application $application): bool
+    {
+        return $this->transitionStatus($company, $application);
+    }
+
+    public function viewTimeline(object $actor, Application $application): bool
+    {
+        return $this->view($actor, $application);
+    }
+
+    public function viewMatch(Company $company, Application $application): bool
+    {
+        return $this->transitionStatus($company, $application);
+    }
+
     public function downloadCv(object $actor, Application $application): bool
     {
         return $this->view($actor, $application);
+    }
+
+    public function downloadSubmittedResume(object $actor, Application $application): bool
+    {
+        return $this->downloadCv($actor, $application);
     }
 }

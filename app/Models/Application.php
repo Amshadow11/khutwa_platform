@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
-use App\Notifications\ApplicationStatusChanged;
 use Illuminate\Support\Facades\URL;
 
 class Application extends Model
@@ -49,7 +48,6 @@ class Application extends Model
         'resume_snapshot_version',
         'resume_snapshot_created_at',
         'submitted_resume_pdf_path',
-        'about',
         'applicant_name',
         'applicant_email',
         'applicant_phone',
@@ -123,6 +121,16 @@ class Application extends Model
         return $this->hasMany(ApplicationActivity::class)->latest('occurred_at');
     }
 
+    public function aiMatches(): HasMany
+    {
+        return $this->hasMany(JobApplicationMatch::class)->latest('evaluated_at');
+    }
+
+    public function latestAiMatch(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(JobApplicationMatch::class)->latestOfMany('evaluated_at');
+    }
+
     // ========================================================
     // Query Scopes
     // ========================================================
@@ -150,54 +158,6 @@ class Application extends Model
     public function scopeRecent(Builder $query, int $days = 30): Builder
     {
         return $query->where('applied_at', '>=', now()->subDays($days));
-    }
-
-    // ========================================================
-    // Methods
-    // ========================================================
-
-    /**
-     * تحديث حالة الطلب وتسجيل التاريخ.
-     *
-     * الاستخدام:
-     * $application->updateStatus('shortlisted', 'المرشح مناسب للمقابلة');
-     */
-    public function updateStatus(string $newStatus, ?string $note = null, bool $silent = false): bool
-    {
-        // التحقق من أن الحالة صالحة
-        if (! in_array($newStatus, self::STATUSES)) {
-            return false;
-        }
-
-        $oldStatus = $this->status;
-
-        $this->update([
-            'status'            => $newStatus,
-            'status_updated_at' => now(),
-        ]);
-
-        // تسجيل في التاريخ
-        $this->statusHistory()->create([
-            'status'     => $newStatus,
-            'note'       => $note,
-            'changed_at' => now(),
-        ]);
-
-       if (! $silent) {
-            $this->load('user', 'job.company');
-            $this->user->notify(new ApplicationStatusChanged($this, $oldStatus));
-        }
-        return true;
-    }
-
-    /**
-     * تمييز الطلب كـ "تمت مشاهدته" عند فتحه أول مرة.
-     */
-    public function markAsViewed(): void
-    {
-        if ($this->status === self::STATUS_PENDING) {
-            $this->updateStatus(self::STATUS_VIEWED, silent: true);
-        }
     }
 
     // ========================================================

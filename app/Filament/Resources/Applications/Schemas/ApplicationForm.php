@@ -33,11 +33,6 @@ class ApplicationForm
                     ->label('السيرة الذاتية')
                     ->default(null),
 
-                Textarea::make('about')
-                    ->label('نبذة')
-                    ->default(null)
-                    ->columnSpanFull(),
-
                 TextInput::make('applicant_name')
                     ->label('اسم المتقدم')
                     ->default(null),
@@ -51,22 +46,6 @@ class ApplicationForm
                     ->label('رقم الهاتف')
                     ->tel()
                     ->default(null),
-
-                Select::make('status')
-                    ->label('الحالة')
-                    ->options([
-                        'pending'     => 'قيد الانتظار',
-                        'viewed'      => 'تمت المشاهدة',
-                        'shortlisted' => 'في القائمة المختصرة',
-                        'interview'   => 'مقابلة',
-                        'accepted'    => 'مقبول',
-                        'rejected'    => 'مرفوض',
-                    ])
-                    ->default('pending')
-                    ->required(),
-
-                DateTimePicker::make('status_updated_at')
-                    ->label('تاريخ تحديث الحالة'),
 
                 DateTimePicker::make('applied_at')
                     ->label('تاريخ التقديم')

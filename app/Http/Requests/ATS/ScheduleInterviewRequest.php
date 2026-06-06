@@ -8,7 +8,7 @@ class ScheduleInterviewRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user('company')?->can('view', $this->route('application')) ?? false;
+        return $this->user('company')?->can('scheduleInterview', $this->route('application')) ?? false;
     }
 
     public function rules(): array

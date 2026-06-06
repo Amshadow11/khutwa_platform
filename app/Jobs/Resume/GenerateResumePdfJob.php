@@ -34,4 +34,9 @@ class GenerateResumePdfJob implements ShouldQueue
                 'pdf_error' => str($exception->getMessage())->limit(2000)->toString(),
             ]);
     }
+
+    public function tags(): array
+    {
+        return ['pdf', 'resume-pdf', 'resume:' . $this->resumeId];
+    }
 }

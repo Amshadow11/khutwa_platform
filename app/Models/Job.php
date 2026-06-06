@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
+use Laravel\Scout\Searchable;
 use Illuminate\Support\Carbon;
 
 class Job extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, Searchable, SoftDeletes;
 
     // ========================================================
     // الحقول المسموح بتعبئتها
@@ -73,6 +74,16 @@ class Job extends Model
         return $this->hasMany(Application::class);
     }
 
+    public function matchRuns(): HasMany
+    {
+        return $this->hasMany(JobMatchRun::class);
+    }
+
+    public function applicationMatches(): HasMany
+    {
+        return $this->hasMany(JobApplicationMatch::class);
+    }
+
     /**
      * المتقدمون على الوظيفة (عبر applications).
      */
@@ -116,35 +127,6 @@ class Job extends Model
     public function scopeForCompany(Builder $query, int $companyId): Builder
     {
         return $query->where('company_id', $companyId);
-    }
-
-    /**
-     * البحث النصي في العنوان والوصف.
-     * الاستخدام: Job::search('مبرمج')->get()
-     */
-    public function scopeSearch(Builder $query, string $keyword): Builder
-    {
-        return $query->where(function ($q) use ($keyword) {
-            $q->where('title', 'like', "%{$keyword}%")
-              ->orWhere('description', 'like', "%{$keyword}%")
-              ->orWhere('requirements', 'like', "%{$keyword}%");
-        });
-    }
-
-    /**
-     * فلترة متعددة دفعة واحدة.
-     * الاستخدام: Job::filter($request->only(['keyword','location','job_type']))->paginate()
-     */
-    public function scopeFilter(Builder $query, array $filters): Builder
-    {
-        return $query
-            ->when($filters['keyword'] ?? null, fn($q, $k) => $q->search($k))
-            ->when($filters['location'] ?? null, fn($q, $l) => $q->where('location', $l))
-            ->when($filters['job_type'] ?? null, fn($q, $t) => $q->where('job_type', $t))
-            ->when($filters['category'] ?? null, fn($q, $c) => $q->where('category', $c))
-            ->when($filters['experience_level'] ?? null, fn($q, $e) => $q->where('experience_level', $e))
-            ->when(isset($filters['remote_work']), fn($q) => $q->where('remote_work', true))
-            ->when(isset($filters['urgent']), fn($q) => $q->where('urgent', true));
     }
 
     // ========================================================
@@ -208,5 +190,50 @@ class Job extends Model
     public function incrementViews(): void
     {
         $this->increment('views');
+    }
+
+    public function searchableAs(): string
+    {
+        return config('scout.prefix') . 'jobs';
+    }
+
+    public function shouldBeSearchable(): bool
+    {
+        return $this->isPubliclySearchable();
+    }
+
+    public function toSearchableArray(): array
+    {
+        $this->loadMissing('company:id,company_name,is_verified,status');
+
+        return [
+            'id' => (int) $this->id,
+            'company_id' => (int) $this->company_id,
+            'company_name' => $this->company?->company_name,
+            'company_verified' => (bool) $this->company?->is_verified,
+            'title' => $this->title,
+            'description' => $this->description,
+            'requirements' => $this->requirements,
+            'benefits' => $this->benefits,
+            'category' => $this->category,
+            'job_type' => $this->job_type,
+            'experience_level' => $this->experience_level,
+            'location' => $this->location,
+            'remote_work' => (bool) $this->remote_work,
+            'urgent' => (bool) $this->urgent,
+            'featured' => (bool) $this->featured,
+            'status' => $this->status,
+            'is_active' => (bool) $this->is_active,
+            'deadline' => $this->deadline?->copy()->startOfDay()->timestamp,
+            'post_date' => $this->post_date?->timestamp,
+            'created_at' => $this->created_at?->timestamp,
+        ];
+    }
+
+    private function isPubliclySearchable(): bool
+    {
+        return (bool) $this->is_active
+            && $this->status === 'active'
+            && (! $this->deadline instanceof Carbon || $this->deadline->isToday() || $this->deadline->isFuture());
     }
 }

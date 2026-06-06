@@ -86,12 +86,12 @@
             </div>
         </div>
 
-        @if($application->cover_letter || $application->about)
+        @if($application->cover_letter)
         <div class="card mb-3">
             <div class="card-header"><i class="fas fa-file-alt me-2 text-primary"></i>رسالة التغطية</div>
             <div class="card-body">
                 <p class="mb-0" style="line-height:1.9;white-space:pre-wrap">
-                    {{ $application->cover_letter ?? $application->about }}
+                    {{ $application->cover_letter }}
                 </p>
             </div>
         </div>
@@ -207,23 +207,25 @@
                         {{ $application->status_label }}
                     </span>
                 </div>
-                <form action="{{ route('company.applications.updateStatus', $application) }}" method="POST">
-                    @csrf @method('PATCH')
-                    <select name="status" class="form-select form-select-sm mb-2">
-                        @foreach([
-                            'pending'=>'قيد المراجعة','viewed'=>'تمت المشاهدة',
-                            'shortlisted'=>'في القائمة المختصرة','interview'=>'دُعي للمقابلة',
-                            'accepted'=>'مقبول','rejected'=>'مرفوض',
-                        ] as $v=>$l)
-                            <option value="{{ $v }}" {{ $application->status===$v?'selected':'' }}>{{ $l }}</option>
-                        @endforeach
-                    </select>
-                    <textarea name="note" class="form-control form-control-sm mb-2" rows="2"
-                              placeholder="ملاحظة مع التغيير (اختياري)"></textarea>
-                    <button type="submit" class="btn btn-primary btn-sm w-100 rounded-pill">
-                        <i class="fas fa-save me-1"></i>حفظ التغيير
-                    </button>
-                </form>
+                @php($transitions = $workflow->availableTransitions($application))
+                @if($transitions)
+                    <form action="{{ route('company.applications.transitionStatus', $application) }}" method="POST">
+                        @csrf @method('PATCH')
+                        <select name="status" class="form-select form-select-sm mb-2">
+                            <option value="">اختر الانتقال التالي...</option>
+                            @foreach($transitions as $transition)
+                                <option value="{{ $transition['status'] }}">{{ $transition['label'] }}</option>
+                            @endforeach
+                        </select>
+                        <textarea name="note" class="form-control form-control-sm mb-2" rows="2"
+                                  placeholder="ملاحظة مع التغيير (اختياري)"></textarea>
+                        <button type="submit" class="btn btn-primary btn-sm w-100 rounded-pill">
+                            <i class="fas fa-save me-1"></i>حفظ التغيير
+                        </button>
+                    </form>
+                @else
+                    <div class="text-muted small">هذه حالة نهائية ولا توجد انتقالات متاحة.</div>
+                @endif
             </div>
         </div>
 
@@ -238,6 +240,11 @@
                     </div>
                     <div>
                         <div class="fw-semibold" style="font-size:.82rem">{{ $h->status_label }}</div>
+                        @if($h->from_status)
+                            <div class="text-muted" style="font-size:.72rem">
+                                من {{ $workflow->statusLabel($h->from_status) }} إلى {{ $workflow->statusLabel($h->status) }}
+                            </div>
+                        @endif
                         @if($h->note)
                             <div class="text-muted" style="font-size:.75rem">{{ $h->note }}</div>
                         @endif
@@ -247,6 +254,40 @@
                     </div>
                 </div>
                 @endforeach
+            </div>
+        </div>
+        @endif
+
+        @if($application->latestAiMatch)
+        <div class="card mb-3">
+            <div class="card-header"><i class="fas fa-wand-magic-sparkles me-2 text-primary"></i>AI Match Snapshot</div>
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between border rounded p-2 mb-3">
+                    <div>
+                        <div class="small text-muted">Overall match</div>
+                        <div class="fw-bold">{{ number_format((float) $application->latestAiMatch->overall_score, 1) }}/100</div>
+                    </div>
+                    <div class="text-end small text-muted">
+                        Snapshot v{{ $application->latestAiMatch->resume_snapshot_version }}<br>
+                        {{ $application->latestAiMatch->evaluated_at?->format('Y/m/d H:i') }}
+                    </div>
+                </div>
+
+                @if($application->latestAiMatch->ai_explanation)
+                    <p class="small text-muted mb-3">{{ $application->latestAiMatch->ai_explanation }}</p>
+                @endif
+
+                <div class="small mb-2">
+                    <strong>Matched skills:</strong>
+                    {{ collect($application->latestAiMatch->matched_skills ?? [])->implode(', ') ?: 'None' }}
+                </div>
+                <div class="small mb-2">
+                    <strong>Missing skills:</strong>
+                    {{ collect($application->latestAiMatch->missing_skills ?? [])->implode(', ') ?: 'None' }}
+                </div>
+                @if($application->latestAiMatch->is_reused)
+                    <span class="badge bg-light text-dark border">Reused from match #{{ $application->latestAiMatch->reused_from_match_id }}</span>
+                @endif
             </div>
         </div>
         @endif

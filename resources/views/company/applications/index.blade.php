@@ -102,6 +102,14 @@
                                 <div class="text-muted" style="font-size:.75rem">
                                     {{ $app->candidate_phone ?? $app->candidate_email }}
                                 </div>
+                                @if($app->latestAiMatch)
+                                    <div class="mt-1">
+                                        <span class="badge bg-primary">AI {{ number_format((float) $app->latestAiMatch->overall_score, 1) }}/100</span>
+                                        @if($app->latestAiMatch->is_reused)
+                                            <span class="badge bg-light text-dark border">reused</span>
+                                        @endif
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     </td>
@@ -117,17 +125,22 @@
                         <span class="badge bg-{{ $app->status_color }}">{{ $app->status_label }}</span>
                     </td>
                     <td>
-                        <form action="{{ route('company.applications.updateStatus', $app) }}"
-                              method="POST">
-                            @csrf @method('PATCH')
-                            <select name="status" class="form-select form-select-sm"
-                                    style="width:130px;font-size:.78rem"
-                                    onchange="this.form.submit()">
-                                @foreach(['pending'=>'قيد المراجعة','viewed'=>'تمت المشاهدة','shortlisted'=>'قائمة مختصرة','interview'=>'مقابلة','accepted'=>'مقبول','rejected'=>'مرفوض'] as $v=>$l)
-                                    <option value="{{ $v }}" {{ $app->status===$v?'selected':'' }}>{{ $l }}</option>
-                                @endforeach
-                            </select>
-                        </form>
+                        @php($transitions = $workflow->availableTransitions($app))
+                        @if($transitions)
+                            <form action="{{ route('company.applications.transitionStatus', $app) }}" method="POST">
+                                @csrf @method('PATCH')
+                                <select name="status" class="form-select form-select-sm"
+                                        style="width:130px;font-size:.78rem"
+                                        onchange="this.form.submit()">
+                                    <option value="">نقل إلى...</option>
+                                    @foreach($transitions as $transition)
+                                        <option value="{{ $transition['status'] }}">{{ $transition['label'] }}</option>
+                                    @endforeach
+                                </select>
+                            </form>
+                        @else
+                            <span class="text-muted small">نهائية</span>
+                        @endif
                     </td>
                     <td>
                         <a href="{{ route('company.applications.show', $app) }}"
@@ -154,21 +167,31 @@
                     <div class="text-muted" style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
                         {{ $app->job->title ?? '—' }}
                     </div>
+                    @if($app->latestAiMatch)
+                        <div class="mt-1">
+                            <span class="badge bg-primary">AI {{ number_format((float) $app->latestAiMatch->overall_score, 1) }}/100</span>
+                            @if($app->latestAiMatch->is_reused)
+                                <span class="badge bg-light text-dark border">reused</span>
+                            @endif
+                        </div>
+                    @endif
                 </div>
                 <span class="badge bg-{{ $app->status_color }} flex-shrink-0">
                     {{ $app->status_label }}
                 </span>
             </div>
-            <form action="{{ route('company.applications.updateStatus', $app) }}"
-                  method="POST" class="mb-2">
-                @csrf @method('PATCH')
-                <select name="status" class="form-select form-select-sm"
-                        onchange="this.form.submit()">
-                    @foreach(['pending'=>'قيد المراجعة','viewed'=>'تمت المشاهدة','shortlisted'=>'قائمة مختصرة','interview'=>'مقابلة','accepted'=>'مقبول','rejected'=>'مرفوض'] as $v=>$l)
-                        <option value="{{ $v }}" {{ $app->status===$v?'selected':'' }}>{{ $l }}</option>
-                    @endforeach
-                </select>
-            </form>
+            @php($transitions = $workflow->availableTransitions($app))
+            @if($transitions)
+                <form action="{{ route('company.applications.transitionStatus', $app) }}" method="POST" class="mb-2">
+                    @csrf @method('PATCH')
+                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">نقل إلى...</option>
+                        @foreach($transitions as $transition)
+                            <option value="{{ $transition['status'] }}">{{ $transition['label'] }}</option>
+                        @endforeach
+                    </select>
+                </form>
+            @endif
             <div class="d-flex align-items-center justify-content-between">
                 <span class="text-muted" style="font-size:.75rem">
                     <i class="fas fa-clock me-1"></i>{{ $app->applied_at?->diffForHumans() }}

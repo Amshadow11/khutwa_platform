@@ -38,7 +38,7 @@ class BrowsershotResumePdfGenerator
                 ->newHeadless()
                 ->noSandbox()
                 ->setOption('waitUntil', 'load')
-                ->setOption('protocolTimeout', $timeout * 120)
+                ->setOption('protocolTimeout', $timeout * 1000)
                 ->timeout($timeout);
 
             if ($node = config('resumes.pdf.node_binary')) {

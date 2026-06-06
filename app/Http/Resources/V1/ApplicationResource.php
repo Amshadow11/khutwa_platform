@@ -39,6 +39,7 @@ class ApplicationResource extends JsonResource
                 'evaluated_snapshot_hash' => $this->reviews->first()->evaluated_snapshot_hash,
                 'evaluated_at' => $this->reviews->first()->evaluated_at?->toISOString(),
             ] : null),
+            'ai_match' => new JobApplicationMatchResource($this->whenLoaded('latestAiMatch')),
             'job' => new JobResource($this->whenLoaded('job')),
         ];
     }

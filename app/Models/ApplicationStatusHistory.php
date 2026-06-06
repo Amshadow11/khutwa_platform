@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ApplicationStatusHistory extends Model
 {
@@ -14,12 +15,18 @@ class ApplicationStatusHistory extends Model
 
     protected $fillable = [
         'application_id',
+        'from_status',
         'status',
         'note',
+        'actor_type',
+        'actor_id',
+        'transition_key',
+        'metadata',
         'changed_at',
     ];
 
     protected $casts = [
+        'metadata' => 'array',
         'changed_at' => 'datetime',
     ];
 
@@ -30,6 +37,11 @@ class ApplicationStatusHistory extends Model
     public function application(): BelongsTo
     {
         return $this->belongsTo(Application::class);
+    }
+
+    public function actor(): MorphTo
+    {
+        return $this->morphTo();
     }
 
     // ========================================================

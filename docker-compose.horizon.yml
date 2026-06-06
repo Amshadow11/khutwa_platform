@@ -1,0 +1,53 @@
+services:
+  php-worker-base:
+    build:
+      context: .
+      dockerfile: docker/php-worker-base/Dockerfile
+    image: khutwacodex-php-worker-base:latest
+    profiles:
+      - build
+
+  horizon:
+    build:
+      context: .
+      dockerfile: docker/horizon/Dockerfile
+    image: khutwacodex-horizon:latest
+    container_name: khutwa-horizon
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    environment:
+      APP_ENV: horizon_docker
+      DB_HOST: host.docker.internal
+      OLD_DB_HOST: host.docker.internal
+      REDIS_HOST: host.docker.internal
+      MEILISEARCH_HOST: http://host.docker.internal:7700
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  pdf-worker:
+    build:
+      context: .
+      dockerfile: docker/pdf-worker/Dockerfile
+    image: khutwacodex-pdf-worker:latest
+    container_name: khutwa-pdf-worker
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    environment:
+      APP_ENV: pdf_docker
+      DB_HOST: host.docker.internal
+      OLD_DB_HOST: host.docker.internal
+      REDIS_HOST: host.docker.internal
+      MEILISEARCH_HOST: http://host.docker.internal:7700
+      BROWSERSHOT_NODE_BINARY: /usr/bin/node
+      BROWSERSHOT_NPM_BINARY: /usr/bin/npm
+      BROWSERSHOT_CHROME_PATH: /usr/bin/chromium
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

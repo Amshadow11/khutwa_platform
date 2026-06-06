@@ -107,6 +107,16 @@ class Company extends Authenticatable implements CanResetPasswordContract
     {
         return $this->hasManyThrough(Application::class, Job::class);
     }
+
+    public function jobMatchRuns(): HasMany
+    {
+        return $this->hasMany(JobMatchRun::class);
+    }
+
+    public function jobApplicationMatches(): HasMany
+    {
+        return $this->hasMany(JobApplicationMatch::class);
+    }
     // ========================================================
 // علاقات الاشتراك
 // ========================================================

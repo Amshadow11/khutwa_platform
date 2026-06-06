@@ -358,6 +358,11 @@
             <i class="fas fa-columns"></i>
             <span>ATS Pipeline</span>
         </a>
+        <a href="{{ route('company.matches.index') }}"
+           class="sidebar-link {{ request()->routeIs('company.matches.*') ? 'active' : '' }}">
+            <i class="fas fa-magnifying-glass-chart"></i>
+            <span>AI Matching</span>
+        </a>
 
         <div class="sidebar-heading">التواصل</div>
 
@@ -488,6 +493,10 @@
     <a href="{{ route('company.applications.pipeline') }}"
        class="{{ request()->routeIs('company.applications.pipeline') ? 'active' : '' }}">
         <i class="fas fa-columns"></i><span>ATS</span>
+    </a>
+    <a href="{{ route('company.matches.index') }}"
+       class="{{ request()->routeIs('company.matches.*') ? 'active' : '' }}">
+        <i class="fas fa-magnifying-glass-chart"></i><span>AI</span>
     </a>
     <a href="#">
         <i class="fas fa-building"></i><span>الملف</span>

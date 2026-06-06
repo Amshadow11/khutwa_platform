@@ -1,0 +1,13 @@
+[program:khutwa-horizon]
+process_name=%(program_name)s
+command=php /var/www/khutwa/artisan horizon
+directory=/var/www/khutwa
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+redirect_stderr=true
+stdout_logfile=/var/www/khutwa/storage/logs/horizon.log
+stopwaitsecs=3600
+

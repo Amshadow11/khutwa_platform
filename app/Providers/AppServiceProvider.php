@@ -2,8 +2,11 @@
 
 namespace App\Providers;
 
+use App\Events\ApplicationStatusTransitioned;
 use App\Events\UserAppliedToJob;
+use App\Listeners\LogApplicationStatusTransitionActivity;
 use App\Listeners\SendApplicationReceivedNotification;
+use App\Listeners\SendApplicationStatusChangedNotification;
 use App\Models\Application;
 use App\Models\Conversation;
 use App\Models\Job;
@@ -61,5 +64,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(UserLanguage::class, UserLanguagePolicy::class);
 
         Event::listen(UserAppliedToJob::class, SendApplicationReceivedNotification::class);
+        Event::listen(ApplicationStatusTransitioned::class, SendApplicationStatusChangedNotification::class);
+        Event::listen(ApplicationStatusTransitioned::class, LogApplicationStatusTransitionActivity::class);
     }
 }

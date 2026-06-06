@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Job\StoreJobRequest;
 use App\Http\Requests\Job\UpdateJobRequest;
 use App\Models\Job;
+use App\Services\ATS\ApplicationStatusWorkflowService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -93,7 +94,7 @@ class JobController extends Controller
     // عرض وظيفة
     // ========================================================
 
-    public function show(Job $job): View
+    public function show(Job $job, ApplicationStatusWorkflowService $workflow): View
     {
         Gate::forUser(Auth::guard('company')->user())->authorize('view', $job);
 
@@ -102,8 +103,10 @@ class JobController extends Controller
                 ->with([
                     'user:id,username,full_name,email,phone,profile_picture',
                     'resume:id,title,version_number',
+                    'latestAiMatch',
                 ])
                 ->latest('applied_at'),
+            'matchRuns' => fn ($query) => $query->latest()->limit(5),
         ]);
 
         $applicationStats = [
@@ -114,7 +117,7 @@ class JobController extends Controller
             'rejected'    => $job->applications->where('status', 'rejected')->count(),
         ];
 
-        return view('company.jobs.show', compact('job', 'applicationStats'));
+        return view('company.jobs.show', compact('job', 'applicationStats', 'workflow'));
     }
 
     // ========================================================

@@ -8,7 +8,7 @@ use Illuminate\Support\Collection;
 
 class ApplicationPipelineService
 {
-    public function stages(): array
+    private function stages(): array
     {
         return [
             Application::STATUS_PENDING => ['label' => 'جديد', 'color' => 'warning'],
@@ -32,6 +32,7 @@ class ApplicationPipelineService
                 'job:id,title,location,company_id',
                 'resume:id,title,version_number',
                 'reviews',
+                'latestAiMatch',
                 'interviews',
             ])
             ->whereIn('job_id', $jobIds)

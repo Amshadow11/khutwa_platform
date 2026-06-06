@@ -33,4 +33,14 @@ class ParseCvJob implements ShouldQueue
             applicationId: $this->applicationId,
         );
     }
+
+    public function tags(): array
+    {
+        return array_filter([
+            'ai',
+            'cv-parser',
+            'user:' . $this->userId,
+            $this->applicationId ? 'application:' . $this->applicationId : null,
+        ]);
+    }
 }

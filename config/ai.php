@@ -62,4 +62,9 @@ return [
         'smart_search'    => 60,   // ساعة واحدة
         'cv_parser'       => 10080, // أسبوع
     ],
+
+    'matching' => [
+        'version' => (int) env('AI_MATCHING_VERSION', 1),
+        'enable_explanations' => (bool) env('AI_MATCHING_EXPLANATIONS', true),
+    ],
 ];

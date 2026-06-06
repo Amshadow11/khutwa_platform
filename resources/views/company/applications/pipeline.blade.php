@@ -107,10 +107,14 @@
                             </div>
                         @endif
 
-                        @if($review?->overall_score !== null)
-                            <div class="small mt-2">
-                                <span class="badge bg-primary">{{ number_format((float) $review->overall_score, 1) }}/100</span>
-                                <span class="text-muted">درجة التقييم</span>
+                        @if($application->latestAiMatch)
+                            <div class="mt-2">
+                                <span class="badge bg-primary">
+                                    AI {{ number_format((float) $application->latestAiMatch->overall_score, 1) }}/100
+                                </span>
+                                @if($application->latestAiMatch->is_reused)
+                                    <span class="badge bg-light text-dark border">reused</span>
+                                @endif
                             </div>
                         @endif
 
@@ -125,16 +129,14 @@
                             <a href="{{ route('company.applications.show', $application) }}" class="btn btn-outline-primary rounded-pill">
                                 عرض
                             </a>
-                            @foreach($stages as $status => $stage)
-                                @continue($status === $application->status)
-                                @if(in_array($status, ['shortlisted', 'interview', 'accepted', 'rejected'], true))
-                                    <form action="{{ route('company.applications.updateStatus', $application) }}" method="POST">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="hidden" name="status" value="{{ $status }}">
-                                        <button class="btn btn-outline-secondary rounded-pill w-100">{{ $stage['label'] }}</button>
-                                    </form>
-                                @endif
+                            @foreach($workflow->availableTransitions($application) as $transition)
+                                @continue($transition['status'] === \App\Models\Application::STATUS_VIEWED)
+                                <form action="{{ route('company.applications.transitionStatus', $application) }}" method="POST">
+                                    @csrf
+                                    @method('PATCH')
+                                    <input type="hidden" name="status" value="{{ $transition['status'] }}">
+                                    <button class="btn btn-outline-secondary rounded-pill w-100">{{ $transition['label'] }}</button>
+                                </form>
                             @endforeach
                         </div>
                     </article>

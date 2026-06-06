@@ -2,13 +2,13 @@
 
 namespace App\Events;
 
-use App\Models\Company;
+use App\Models\JobApplicationMatch;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class CompanyVerified
+class JobApplicationMatchScored
 {
     use Dispatchable, SerializesModels;
 
-    public function __construct(public readonly Company $company) {}
+    public function __construct(public readonly JobApplicationMatch $match) {}
 }
